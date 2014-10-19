@@ -1,8 +1,6 @@
 """
-Implements a simple service using cx_Freeze.
+Main file for configuring Windows classes and by extension windows services.
 
-See below for more information on what methods must be implemented and how they
-are called.
 """
 
 import cx_Logging
@@ -19,7 +17,7 @@ from gevent.pool import Pool
 # DO NOT REMOVE ANYTHING BELOW THIS LINE
 import passive.nrds
 import passive.nrdp
-import listener.server
+import listener.server.listener as webprocess
 import listener.psapi
 import listener.windowscounters
 import listener.windowslogs
@@ -33,46 +31,71 @@ monkey.patch_all()
 
 
 class Base(object):
-    # no parameters are permitted; all configuration should be placed in the
-    # configuration file and handled in the Initialize() method
+    """The base object. We have a Base object because both the listener and the
+    passive will use much of the same function: logging, config reading, etc.
+    We will keep those in a base object to avoid code duplication. Do not put
+    anything utility in the base that will not be shared amongst the children.
+
+    """
+
     def __init__(self, debug=False):
+        """Initialize a base instance.
+
+        @param debug Boolean for debug usage.
+        """
         logging.getLogger().handlers = []
         self.stopEvent = cx_Threads.Event()
         self.debug = debug
 
-    def determine_relative_filename(self, file_name, *args, **kwargs):
-        """Gets the relative pathname of the executable being run.
+    def ncpa_path(self, path, *args, **kwargs):
+        """Gets the absolute pathname of a file such that the current NCPA
+        process can access it.
 
-        This is meant exclusively for being used with cx_Freeze on Windows.
+        This function is necessary due to the multiple Windows environments we
+        are running in. When we run in "frozen" mode (after we have used
+        cx_Freeze) we have a very different starting directory than if we were
+        simply running this in debug Python mode.
+
+        @param file_name The relative path to resolve to an absolute path
+        @return The absolute path of the passed path.
         """
         if self.debug:
             appdir = os.path.dirname(filename.__file__)
         else:
             appdir = os.path.dirname(sys.path[0])
-
-        # There is something wonky about Windows and its need for paths and how Python
-        # pulls the above appdir, which doesn't come out absolute when the application
-        # is frozen. Figured being absolutely sure its an absolute path here.
-        return os.path.abspath(os.path.join(appdir, file_name))
+        return os.path.abspath(os.path.join(appdir, path))
 
     def parse_config(self, *args, **kwargs):
+        """Parse the config file.
+
+        We have some overhead for parsing config files. We need our config files
+        to be case sensitive. We also need to ensure our config object has a
+        path back to itself.
+        """
         self.config = ConfigParser.ConfigParser()
         self.config.optionxform = str
         self.config.read(self.config_filename)
 
         config_relative_path = os.path.join('etc', 'ncpa.cfg')
-        config_path = self.determine_relative_filename(config_relative_path)
+        config_path = self.ncpa_path(config_relative_path)
         self.config.file_path = config_path
 
     def setup_plugins(self):
+        """Set up plugins for proper processing.
+
+        We need to ensure that plugins are accessible in a sane manner. Things
+        like setting the absolute plugin path should be put in this function.
+        """
         plugin_path = self.config.get('plugin directives', 'plugin_path')
-        abs_plugin_path = self.determine_relative_filename(plugin_path)
-        self.abs_plugin_path = os.path.normpath(abs_plugin_path)
-        self.config.set('plugin directives', 'plugin_path', self.abs_plugin_path)
+        plugin_path = self.ncpa_path(plugin_path)
+        self.abs_plugin_path = os.path.normpath(plugin_path)
+        self.config.set('plugin directives', 'plugin_path', self.plugin_path)
 
     def setup_logging(self, *args, **kwargs):
-        """This should always setup the logger.
+        """Set up the global logging instance.
 
+        Take care of housekeeping for logging information. This should involve
+        setting the log level, the log size and log location.
         """
         config = dict(self.config.items(self.c_type, 1))
 
@@ -82,58 +105,65 @@ class Base(object):
 
         log_file = os.path.normpath(config['logfile'])
         if not os.path.isabs(log_file):
-            log_file = self.determine_relative_filename(log_file)
+            log_file = self.ncpa_path(log_file)
 
         logging.getLogger().handlers = []
+        log_format = '%(asctime)s:%(levelname)s:%(module)s:%(message)s'
 
-        # Max size of log files will be 20MB, and we'll keep one of them as backup
-        max_file_size = 20 * 1024 * 1024
-        file_handler = logging.handlers.RotatingFileHandler(log_file, maxBytes=max_file_size, backupCount=1)
-        file_format = logging.Formatter('%(asctime)s:%(levelname)s:%(module)s:%(message)s')
+        # Max size of log files will be 20MB, and we'll keep one of them as
+        # backup
+        max_size = 20 * 1024 * 1024
+        file_handler = logging.handlers.RotatingFileHandler(log_file,
+                                                            maxBytes=max_size,
+                                                            backupCount=1)
+        file_format = logging.Formatter(log_format)
         file_handler.setFormatter(file_format)
 
         logging.getLogger().addHandler(file_handler)
         logging.getLogger().setLevel(log_level)
 
-    # called when the service is starting immediately after Initialize()
-    # use this to perform the work of the service; don't forget to set or check
-    # for the stop event or the service GUI will not respond to requests to
-    # stop the service
     def Run(self):
+        """Called immediately after Initialize by the Win32 service runner.
+
+        """
         self.start()
         self.stopEvent.Wait()
 
-    # called when the service is being stopped by the service manager GUI
     def Stop(self):
-        pass
+        """Called when asked for the service to stop.
+
+        """
         self.stopEvent.Set()
 
 
 class Listener(Base):
+    """The service in charge of listening for all incoming requests.
+
+    """
 
     def start(self):
-        """Kickoff the TCP Server
+        """Kickoff the HTTP Server.
 
         """
         try:
             address = self.config.get('listener', 'ip')
             port = self.config.getint('listener', 'port')
-            listener.server.listener.config_file = self.config_filename
-            listener.server.listener.tail_method = listener.windowslogs.tail_method
-            listener.server.listener.config['iconfig'] = self.config
+            webprocess.config_file = self.config_filename
+            webprocess.tail_method = listener.windowslogs.tail_method
+            webprocess.config['iconfig'] = self.config
 
             user_cert = self.config.get('listener', 'certificate')
 
             if user_cert == 'adhoc':
-                basepath = self.determine_relative_filename('')
+                basepath = self.ncpa_path('')
                 cert, key = listener.certificate.create_self_signed_cert(basepath, 'ncpa.crt', 'ncpa.key')
             else:
                 cert, key = user_cert.split(',')
             ssl_context = {'certfile': cert, 'keyfile': key}
 
-            listener.server.listener.secret_key = os.urandom(24)
+            webprocess.secret_key = os.urandom(24)
             http_server = WSGIServer(listener=(address, port),
-                                     application=listener.server.listener,
+                                     application=webprocess,
                                      handler_class=webhandler.PatchedWSGIHandler,
                                      spawn=Pool(100),
                                      **ssl_context)
@@ -144,7 +174,7 @@ class Listener(Base):
     # called when the service is starting
     def Initialize(self, config_file):
         self.c_type = 'listener'
-        self.config_filename = self.determine_relative_filename(os.path.join('etc', 'ncpa.cfg'))
+        self.config_filename = self.ncpa_path(os.path.join('etc', 'ncpa.cfg'))
         self.parse_config()
         self.setup_logging()
         self.setup_plugins()
@@ -194,9 +224,10 @@ class Passive(Base):
     # called when the service is starting
     def Initialize(self, config_file):
         self.c_type = 'passive'
-        self.config_filename = self.determine_relative_filename(os.path.join('etc', 'ncpa.cfg'))
+        self.config_filename = self.ncpa_path(os.path.join('etc', 'ncpa.cfg'))
         self.parse_config()
         self.setup_logging()
         self.setup_plugins()
         logging.info("Looking for config at: %s" % self.config_filename)
         logging.info("Looking for plugins at: %s" % self.config.get('plugin directives', 'plugin_path'))
+

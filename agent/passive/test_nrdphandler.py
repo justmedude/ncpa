@@ -94,13 +94,6 @@ class TestNRDPHandler(TestCase):
         hostname = self.n.guess_hostname()
         self.assertEquals(hostname, 'silver')
 
-    @skip("test_NRDPHandler.test_log_result: This is simply logging, no need for testing.")
-    def test_log_result(self):
-        """
-        I'm really not sure how to test this, it is simply logging.
-        """
-        self.fail()
-
     def test_submit_to_nagios(self):
         def nrdp_server_mock(url, token, XMLDATA, cmd):
             checks = self.n.get_commands_from_config()
