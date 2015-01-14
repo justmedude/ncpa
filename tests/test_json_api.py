@@ -66,7 +66,10 @@ class TestBuiltInCommands(unittest.TestCase):
             {'key': 'used_percent',
              'validator': int,
              'unit': '%'}]
+        # Get all entries in this particular computers enumerated disks
         for disk in l:
+            # Iterate through our testing dictionary and make sure that it
+            # validates properly.
             for k in logical_keys:
                 target = self.tmpl % (key, os.path.join('logical', disk,
                                                         k['key']))
@@ -78,3 +81,45 @@ class TestBuiltInCommands(unittest.TestCase):
                 except:
                     k['validator'](lat[0])
                 self.assertEquals(lat[1], k['unit'])
+
+    def test_physical_disk_api(self):
+        arguments = self.get_token()
+        key = 'disk'
+        target = self.tmpl % (key, 'physical')
+        physical_disks = make_api_request(target, arguments)
+        p = physical_disks['value']['physical']
+        physical_keys = [
+            {'key': 'read_bytes',
+             'validator': str,
+             'unit': 'b'},
+            {'key': 'read_count',
+             'validator': int,
+             'unit': 'c'},
+            {'key': 'read_time',
+             'validator': int,
+             'unit': 'ms'},
+            {'key': 'write_bytes',
+             'validator': int,
+             'unit': 'b'},
+            {'key': 'write_count',
+             'validator': int,
+             'unit': 'c'},
+            {'key': 'write_time',
+             'validator': int,
+             'unit': 'ms'}]
+        # Get all entries in this particular computers enumerated disks
+        for disk in p:
+            # Iterate through our testing dictionary and make sure that it
+            # validates properly.
+            for k in physical_keys:
+                target = self.tmpl % (key, os.path.join('physical', disk,
+                                                        k['key']))
+                r = make_api_request(target, arguments)
+                lat = r['value'][k['key']]
+                try:
+                    for x in lat[0]:
+                        k['validator'](x)
+                except:
+                    k['validator'](lat[0])
+                self.assertEquals(lat[1], k['unit'])
+
