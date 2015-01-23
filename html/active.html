@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Active Checks &mdash; NCPA 1.7.2 documentation</title>
+    
+    <link rel="stylesheet" href="_static/basic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/bootstrap-3.1.0/css/bootstrap.min.css" type="text/css" />
+    <link rel="stylesheet" href="_static/bootstrap-3.1.0/css/bootstrap-theme.min.css" type="text/css" />
+    <link rel="stylesheet" href="_static/bootstrap-sphinx.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.7.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/js/jquery-1.11.0.min.js"></script>
+    <script type="text/javascript" src="_static/js/jquery-fix.js"></script>
+    <script type="text/javascript" src="_static/bootstrap-3.1.0/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="_static/bootstrap-sphinx.js"></script>
+    <link rel="top" title="NCPA 1.7.2 documentation" href="index.html" />
+    <link rel="next" title="Passive Checks" href="passive.html" />
+    <link rel="prev" title="The API" href="api.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+  </head>
+  <body>
+
+  <div id="navbar" class="navbar navbar-inverse navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="index.html">
+          NCPA</a>
+        <span class="navbar-text navbar-version pull-left"><b>1.7</b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            <li class="divider-vertical"></li>
+            
+            
+              <li class="dropdown globaltoc-container">
+  <a role="button"
+     id="dLabelGlobalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="index.html">Site <b class="caret"></b></a>
+  <ul class="dropdown-menu globaltoc"
+      role="menu"
+      aria-labelledby="dLabelGlobalToc"><ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="changes.html">1.8.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changes.html#id2">1.7.2 - 08/28/2014</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changes.html#id3">1.7.1 - 08/19/2014</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changes.html#id4">1.7.0 - 07/29/2014</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">The API</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="">Active Checks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="passive.html">Passive Checks</a></li>
+</ul>
+</ul>
+</li>
+              
+                <li class="dropdown">
+  <a role="button"
+     id="dLabelLocalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="#">Page <b class="caret"></b></a>
+  <ul class="dropdown-menu localtoc"
+      role="menu"
+      aria-labelledby="dLabelLocalToc"><ul>
+<li><a class="reference internal" href="#">Active Checks</a><ul>
+<li><a class="reference internal" href="#getting-check-ncpa-py">Getting check_ncpa.py</a></li>
+<li><a class="reference internal" href="#using-check-ncpa-py">Using check_ncpa.py</a></li>
+<li><a class="reference internal" href="#specifying-arguments-for-ncpa-builtins">Specifying Arguments for NCPA Builtins</a></li>
+<li><a class="reference internal" href="#specifying-arguments-for-plugins-run-by-ncpa">Specifying Arguments for Plugins Run by NCPA</a></li>
+<li><a class="reference internal" href="#when-all-else-fails">When All Else Fails...</a></li>
+</ul>
+</li>
+</ul>
+</ul>
+</li>
+              
+            
+            
+              
+                
+  <li>
+    <a href="api.html" title="Previous Chapter: The API"><span class="glyphicon glyphicon-chevron-left visible-sm"></span><span class="hidden-sm">&laquo; The API</span>
+    </a>
+  </li>
+  <li>
+    <a href="passive.html" title="Next Chapter: Passive Checks"><span class="glyphicon glyphicon-chevron-right visible-sm"></span><span class="hidden-sm">Passive Checks &raquo;</span>
+    </a>
+  </li>
+              
+            
+            
+            
+            
+              <li class="hidden-sm">
+<div id="sourcelink">
+  <a href="_sources/active.txt"
+     rel="nofollow">Source</a>
+</div></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+      
+  <div class="section" id="active-checks">
+<span id="id1"></span><h1>Active Checks<a class="headerlink" href="#active-checks" title="Permalink to this headline">¶</a></h1>
+<p>Running active checks against the NCPA agent is trivial and follows in a somewhat similar style as check_nrpe. There is a <a class="reference external" href="http://exchange.nagios.org/directory/Plugins/Network-and-Systems-Management/check_ncpa/details">check_ncpa.py plugin script</a> that is available to use. This plugin is the standard method for executing active checks. However, because of the design of NCPA, it makes it <strong>very</strong> easy to use your own methods to collect data at perform active checks.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Everything on this particular page is referring to your Nagios server. Active checks do not require you to change the NCPA agent&#8217;s computer.</p>
+</div>
+<p>Specifying these checks will take some familiarity with the API tree. It may be useful to familiarize yourself with the documentation on the <a class="reference internal" href="api.html#introduction-api"><em>API tree</em></a>.</p>
+<div class="section" id="getting-check-ncpa-py">
+<h2>Getting check_ncpa.py<a class="headerlink" href="#getting-check-ncpa-py" title="Permalink to this headline">¶</a></h2>
+<p>The check_ncpa.py plugin script is hosted on Nagios&#8217;s plugin exchange. Please download it from the following link:</p>
+<blockquote>
+<div><a class="reference external" href="http://exchange.nagios.org/directory/Plugins/Network-and-Systems-Management/check_ncpa/details">check_ncpa.py</a></div></blockquote>
+<p>This file must exist on your Nagios server in order to use any of the following directives.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The check_ncpa.py is downloaded and installed as part of the NCPA monitoring wizard in Nagios XI.</p>
+</div>
+</div>
+<div class="section" id="using-check-ncpa-py">
+<h2>Using check_ncpa.py<a class="headerlink" href="#using-check-ncpa-py" title="Permalink to this headline">¶</a></h2>
+<p>Once check_ncpa.py is installed in the nagios/libexec directory, you can use it like you would any other plugin. This is where knowing the tree comes in handy. You&#8217;ll need to specify the path in the tree that you&#8217;d like to access. So if we were interested in getting the CPU Usage (percent-wise) of our NCPA agent, we would run the check_ncpa.py as follows:</p>
+<div class="highlight-python"><div class="highlight"><pre>./check_ncpa.py -H ncpaserver -t yourtoken -M cpu/percent
+</pre></div>
+</div>
+<p>Returns:</p>
+<div class="highlight-python"><div class="highlight"><pre>OK: Percent was 6.8%,0.0%,7.5%,0.0%,5.5%,0.1%,7.0%,0.0%|&#39;percent_0&#39;=6.8% &#39;percent_1&#39;=0.0% &#39;percent_2&#39;=7.5% &#39;percent_3&#39;=0.0% &#39;percent_4&#39;=5.5% &#39;percent_5&#39;=0.1% &#39;percent_6&#39;=7.0% &#39;percent_7&#39;=0.0%
+</pre></div>
+</div>
+<p>The values returned are the CPU usage on each core of the system.</p>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">If you encounter problems with check_ncpa.py, enable -v when calling to enable verbose logging of problems.</p>
+</div>
+<p>It should also be noted that you can use check_ncpa.py to return a tree representing all the values you can monitor via NCPA. This is very useful if you are in a terminal without the luxury of a web browser. You can use check_ncpa.py&#8217;s &#8211;list command to have it list, rather than run a check, on a particular node:</p>
+<div class="highlight-python"><div class="highlight"><pre>./check_ncpa.py -H ncpaserver -t yourtoken -M cpu --list
+</pre></div>
+</div>
+<p>This command will return a tree representing all of the values you can monitor via NCPA under the cpu tree. To look at everything you could possibly monitor, simply omit the -M flag and its argument.</p>
+</div>
+<div class="section" id="specifying-arguments-for-ncpa-builtins">
+<h2>Specifying Arguments for NCPA Builtins<a class="headerlink" href="#specifying-arguments-for-ncpa-builtins" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">What is a NCPA built-in? Its a metric that is bundled with NCPA. For example, if you have a plugin you are using NCPA to execute, that is <strong>not</strong> considered a built-in.</p>
+</div>
+<p>You can use the built-in &#8211;warning, &#8211;critical, etc of check_ncpa.py, or you can simply bundle those into the check address:</p>
+<div class="highlight-python"><div class="highlight"><pre>./check_ncpa.py -H ncpaserver -t yourtoken -M cpu/percent --warning 10
+</pre></div>
+</div>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p>Please note that NCPA uses the | character when referring to file system. For example, on a Windows machine,
+the C:drive is referred to as C:<a href="#id2"><span class="problematic" id="id3">|</span></a>. This is to avoid escaping issues. However, it should be noted that | is
+a special character in sh (the shell). In order to get around this, when you are specifying disks, use single
+quotes around your disk call. Example:</p>
+<p>./check_ncpa.py -H ncpaserver -t yourtoken -M &#8216;disk/logical/C:<a href="#id4"><span class="problematic" id="id5">|</span></a>&#8216;</p>
+<p class="last">So that the shell does not interpret the special character <a href="#id6"><span class="problematic" id="id7">|</span></a>.</p>
+</div>
+</div>
+<div class="section" id="specifying-arguments-for-plugins-run-by-ncpa">
+<h2>Specifying Arguments for Plugins Run by NCPA<a class="headerlink" href="#specifying-arguments-for-plugins-run-by-ncpa" title="Permalink to this headline">¶</a></h2>
+<p>In order to specify arguments plugins that NCPA will be running, you must use the -a flag when calling check_ncpa.py. You can also use the long argument for the -a flag, which is &#8211;arguments.</p>
+<p>Imagine we are going to run the test.sh plugin installed on our NCPA server. If we were running the test.sh plugin on our server with NCPA installed we would run something like:</p>
+<div class="highlight-python"><div class="highlight"><pre>/path/to/ncpa/plugins/test.sh -u &#39;one argument&#39; -p &#39;another argument&#39;
+</pre></div>
+</div>
+<p>In order to run this properly with NCPA you would call check_ncpa.py like so:</p>
+<div class="highlight-python"><div class="highlight"><pre>./check_ncpa.py -H ncpaserver -t yourtoken -M agent/plugin/test.sh -a &quot;-u &#39;one argument&#39; -p &#39;another argument&#39;&quot;
+</pre></div>
+</div>
+<p>Notice that items with spaces are wrapped in quotes. There is some shell splitting that goes on under
+the hood with NCPA, so the quotes are important if you need to keep the spaces. Lets take
+a look at what can happen.</p>
+<p>How NCPA actually processes these is by calling the URL as follows:</p>
+<div class="highlight-python"><div class="highlight"><pre>https://ncpaserver/api/agent/plugin/test.sh/-u/one argument/-p/another argument
+</pre></div>
+</div>
+<p>You can also call it this way if you please, however I believe most people prefer
+the -a method as it keeps some of the dirty details hidden away. Now if you remove
+the quotes around &#8216;one argument in the above example call, it would actually call:</p>
+<div class="highlight-python"><div class="highlight"><pre>https://ncpaserver/api/agent/plugin/test.sh/-u/one/argument/-p/another argument
+</pre></div>
+</div>
+<p>See the difference? It interprets as if it were the shell, so wrap the arguments
+that need to maintain spaces in quotes.</p>
+</div>
+<div class="section" id="when-all-else-fails">
+<h2>When All Else Fails...<a class="headerlink" href="#when-all-else-fails" title="Permalink to this headline">¶</a></h2>
+<p>Either way, calling:</p>
+<div class="highlight-python"><div class="highlight"><pre>./check_ncpa.py --help
+</pre></div>
+</div>
+<p>Help does exist and is actually helpful. It might even solve a few head scratchers.</p>
+</div>
+</div>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright 2013-2014, Nagios Enterprises LLC, Nicholas Scott.<br/>
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2.2.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>

@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Installation &mdash; NCPA 1.7.2 documentation</title>
+    
+    <link rel="stylesheet" href="_static/basic.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <link rel="stylesheet" href="_static/bootstrap-3.1.0/css/bootstrap.min.css" type="text/css" />
+    <link rel="stylesheet" href="_static/bootstrap-3.1.0/css/bootstrap-theme.min.css" type="text/css" />
+    <link rel="stylesheet" href="_static/bootstrap-sphinx.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '1.7.2',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="_static/js/jquery-1.11.0.min.js"></script>
+    <script type="text/javascript" src="_static/js/jquery-fix.js"></script>
+    <script type="text/javascript" src="_static/bootstrap-3.1.0/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="_static/bootstrap-sphinx.js"></script>
+    <link rel="top" title="NCPA 1.7.2 documentation" href="index.html" />
+    <link rel="next" title="Configuration" href="configuration.html" />
+    <link rel="prev" title="Introduction" href="introduction.html" />
+<meta charset='utf-8'>
+<meta http-equiv='X-UA-Compatible' content='IE=edge,chrome=1'>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1'>
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+  </head>
+  <body>
+
+  <div id="navbar" class="navbar navbar-inverse navbar-default navbar-fixed-top">
+    <div class="container">
+      <div class="navbar-header">
+        <!-- .btn-navbar is used as the toggle for collapsed navbar content -->
+        <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="index.html">
+          NCPA</a>
+        <span class="navbar-text navbar-version pull-left"><b>1.7</b></span>
+      </div>
+
+        <div class="collapse navbar-collapse nav-collapse">
+          <ul class="nav navbar-nav">
+            <li class="divider-vertical"></li>
+            
+            
+              <li class="dropdown globaltoc-container">
+  <a role="button"
+     id="dLabelGlobalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="index.html">Site <b class="caret"></b></a>
+  <ul class="dropdown-menu globaltoc"
+      role="menu"
+      aria-labelledby="dLabelGlobalToc"><ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="changes.html">1.8.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changes.html#id2">1.7.2 - 08/28/2014</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changes.html#id3">1.7.1 - 08/19/2014</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changes.html#id4">1.7.0 - 07/29/2014</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changes.html">1.8.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changes.html#id2">1.7.2 - 08/28/2014</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changes.html#id3">1.7.1 - 08/19/2014</a></li>
+<li class="toctree-l1"><a class="reference internal" href="changes.html#id4">1.7.0 - 07/29/2014</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api.html">The API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="active.html">Active Checks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="passive.html">Passive Checks</a></li>
+</ul>
+</ul>
+</li>
+              
+                <li class="dropdown">
+  <a role="button"
+     id="dLabelLocalToc"
+     data-toggle="dropdown"
+     data-target="#"
+     href="#">Page <b class="caret"></b></a>
+  <ul class="dropdown-menu localtoc"
+      role="menu"
+      aria-labelledby="dLabelLocalToc"><ul>
+<li><a class="reference internal" href="#">Installation</a><ul>
+<li><a class="reference internal" href="#installing-ncpa-on-windows">Installing NCPA on Windows</a><ul>
+<li><a class="reference internal" href="#graphical-install">Graphical Install</a></li>
+<li><a class="reference internal" href="#silent-install">Silent Install</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#installing-ncpa-using-rpm-packing">Installing NCPA Using RPM Packing</a></li>
+<li><a class="reference internal" href="#installing-ncpa-using-deb-packaging">Installing NCPA Using DEB Packaging</a></li>
+<li><a class="reference internal" href="#install-ncpa-on-mac-os-x">Install NCPA on Mac OS X</a></li>
+<li><a class="reference internal" href="#testing-your-installation">Testing Your Installation</a></li>
+</ul>
+</li>
+</ul>
+</ul>
+</li>
+              
+            
+            
+              
+                
+  <li>
+    <a href="introduction.html" title="Previous Chapter: Introduction"><span class="glyphicon glyphicon-chevron-left visible-sm"></span><span class="hidden-sm">&laquo; Introduction</span>
+    </a>
+  </li>
+  <li>
+    <a href="configuration.html" title="Next Chapter: Configuration"><span class="glyphicon glyphicon-chevron-right visible-sm"></span><span class="hidden-sm">Configuration &raquo;</span>
+    </a>
+  </li>
+              
+            
+            
+            
+            
+              <li class="hidden-sm">
+<div id="sourcelink">
+  <a href="_sources/installation.txt"
+     rel="nofollow">Source</a>
+</div></li>
+            
+          </ul>
+
+          
+            
+<form class="navbar-form navbar-right" action="search.html" method="get">
+ <div class="form-group">
+  <input type="text" name="q" class="form-control" placeholder="Search" />
+ </div>
+  <input type="hidden" name="check_keywords" value="yes" />
+  <input type="hidden" name="area" value="default" />
+</form>
+          
+        </div>
+    </div>
+  </div>
+
+<div class="container">
+  <div class="row">
+    <div class="col-md-12">
+      
+  <div class="section" id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h1>
+<p>NCPA is packaged for all of its target platforms, including Windows, Linux RPM and DEB packaging as well as tarballs for some of the less common operating systems. Packaging is the one portion of NCPA that cannot be truly platform agnostic. However, packaging for NCPA allows for quick and easy installation on all target platforms and this documentation will give examples on how to install NCPA.</p>
+<p>First and foremost, the following documentation is for a simple install. If you have a complex environment, you can and probably should skip these. What you should know however, is that there are no gotchas involved with installing NCPA.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">It is not specified in any of the following instructions, but it is implied that you will may need to adjust your firewall for NCPA as it is using a non-standard port (5693). Generally, Windows will automatically open the port, as will Mac OS. Please keep this in mind as your progress and have it be the first thing that is checked when the initial install does not appear to work.</p>
+</div>
+<div class="section" id="installing-ncpa-on-windows">
+<h2>Installing NCPA on Windows<a class="headerlink" href="#installing-ncpa-on-windows" title="Permalink to this headline">¶</a></h2>
+<p>First, download the installer to the machine that you wish to install NCPA onto. The NCPA installer can be found at <a class="reference external" href="http://assets.nagios.com/downloads/ncpa/download.php?type=exe&amp;arch=x86">NCPA&#8217;s Windows Installer link</a>.</p>
+<div class="section" id="graphical-install">
+<h3>Graphical Install<a class="headerlink" href="#graphical-install" title="Permalink to this headline">¶</a></h3>
+<p>Navigate to the location that the install was downloaded, and double-click the installer. After agreeing to the license terms, you will find the configuration screen. This asks you to fill in some of the pertinent information.</p>
+<img alt="_images/win-install-screenshot.png" class="align-center" src="_images/win-install-screenshot.png" />
+<p>The first thing you will see is the Active Specifications section. <strong>NCPA can be used as an active agent by simply entering a token into the text box and clicking &#8220;Next.&#8221;</strong>  You must remember this token, and enter it when configuring the device within the Nagios XI wizard or using the <a class="reference external" href="http://exchange.nagios.org/directory/Plugins/Network-and-Systems-Management/check_ncpa/details">check_ncpa.py plugin</a> with Nagios Core. If you are setting up the agent to send passive results back to Nagios, additional information about its specifications, as well as the &#8220;Token&#8221; field are below.</p>
+<ul class="simple">
+<li><strong>Token</strong> - This is the token that the NCPA agent will use as its form of
+authentication. You will need this token when setting up Nagios to monitor
+this agent.</li>
+</ul>
+<p>The following are absolutely not necessary to fill out to get an active agent
+up and running on your system. These are for specifying parameters for the
+passive agent.</p>
+<dl class="glossary docutils">
+<dt id="term-nrdp-url">NRDP URL</dt>
+<dd><p class="first">This is the URL that the NCPA passive agent will send its check results. This is not necessary if you simply want an active agent.</p>
+<dl class="last docutils">
+<dt>NRDP Token</dt>
+<dd>This is the NRDP token used to authenticate the passive checks being sent to Nagios. This is not necessary unless you are sending passive checks with NRDP via the NRDP URL field.</dd>
+</dl>
+</dd>
+<dt id="term-hostname">Hostname</dt>
+<dd>This is the hostname that the agent will report back to Nagios as and has to be set up within Nagios.</dd>
+<dt id="term-config-name">Config Name</dt>
+<dd>This is the NRDS config name that the agent will request when contacting the NRDS server.</dd>
+</dl>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">If you are using pasive checks, the initial install will use the same &#8220;NRDP Token&#8221; for NRDP and NRDS. If you want to change the value of any of these tokens you will need to edit the ncpa.cfg. See the Configuration section for additional information.</p>
+</div>
+</div>
+<div class="section" id="silent-install">
+<h3>Silent Install<a class="headerlink" href="#silent-install" title="Permalink to this headline">¶</a></h3>
+<p>The installer also supports a silent install, which is handy if you&#8217;re one of those ninja systems admins!
+There are four specifications currently supported by the NCPA installer, which are all analogues to the directives
+in the GUI installer.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The installer will also require a /S flag when installing from the command line in order to install silently.</p>
+</div>
+<p>All of the following are to be used as such:</p>
+<div class="highlight-python"><div class="highlight"><pre>/&lt;directive&gt;=&quot;&lt;value&gt;&quot;
+</pre></div>
+</div>
+<p>while being used on the command line. The following are the names of the directives that are available for a silent install.</p>
+<dl class="glossary docutils">
+<dt id="term-token">TOKEN</dt>
+<dd>The token that will be used to access the agent&#8217;s API and web interface.</dd>
+<dt id="term-nrdpurl">NRDPURL</dt>
+<dd>This specifies the NRDP URL to use if passive checks are being implemented.</dd>
+<dt id="term-nrdptoken">NRDPTOKEN</dt>
+<dd>This is the token that will be used to authenticate NRDP passive checks and to authenticate with NRDS.</dd>
+<dt id="term-host">HOST</dt>
+<dd>The host that the passive agent will report back as.</dd>
+<dt id="term-config">CONFIG</dt>
+<dd>The name of the NRDS config the agent will be associated with.</dd>
+</dl>
+<p>Here is an example of installing silently with the TOKEN &#8216;fishingrocks&#8217;:</p>
+<div class="highlight-python"><div class="highlight"><pre>ncpa-&lt;version&gt;.exe /S /TOKEN=&#39;fishingrocks&#39;
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">None of the values are set in stone with any installation method and can easily be changed at a later date.
+Also note that the silent install is case sensitive when passing arguments.</p>
+</div>
+<p>Now the NCPA services are installed and started.</p>
+<p>To test your installation see <a class="reference internal" href="#testing-your-installation">Testing Your Installation</a>.</p>
+</div>
+</div>
+<div class="section" id="installing-ncpa-using-rpm-packing">
+<h2>Installing NCPA Using RPM Packing<a class="headerlink" href="#installing-ncpa-using-rpm-packing" title="Permalink to this headline">¶</a></h2>
+<p>First thing that must be done is acquiring the RPM package. The latest RPM package can be found on the Nagios assets site. Please choose the correct package from the following list of RPM-using distributions. Note these are links.</p>
+<ul>
+<li><dl class="first docutils">
+<dt>CentOS 5.x</dt>
+<dd><ul class="first last simple">
+<li><a class="reference external" href="http://assets.nagios.com/downloads/ncpa/download.php?type=rpm&amp;arch=x86&amp;os=el5">32-bit</a></li>
+<li><a class="reference external" href="http://assets.nagios.com/downloads/ncpa/download.php?type=rpm&amp;arch=x86_64&amp;os=el5">64-bit</a></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>CentOS 6.x</dt>
+<dd><ul class="first last simple">
+<li><a class="reference external" href="http://assets.nagios.com/downloads/ncpa/download.php?type=rpm&amp;arch=x86&amp;os=el6">32-bit</a></li>
+<li><a class="reference external" href="http://assets.nagios.com/downloads/ncpa/download.php?type=rpm&amp;arch=x86_64&amp;os=el6">64-bit</a></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>CentOS 7.0</dt>
+<dd><ul class="first last simple">
+<li><a class="reference external" href="http://assets.nagios.com/downloads/ncpa/download.php?type=rpm&amp;arch=x86_64&amp;os=el7">64-bit</a></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>openSUSE 13.x</dt>
+<dd><ul class="first last simple">
+<li><a class="reference external" href="http://assets.nagios.com/downloads/ncpa/download.php?type=rpm&amp;arch=x86&amp;os=os13">32-bit</a></li>
+<li><a class="reference external" href="http://assets.nagios.com/downloads/ncpa/download.php?type=rpm&amp;arch=x86_64&amp;os=os13">64-bit</a></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">These RPMs should cover the bases for your systems, if these do not work for your particular system, help make the project better by volunteering for a build or you can checkout the source code from git.</p>
+</div>
+<p>Now that we have our RPM on our system, we simply need to use our package manager
+to install it. Many commonly used package managers have the ability to install a
+local package. However, in this example we will the rpm command. If you are using
+something like <em>yum</em> or <em>zypper</em> you can use that as well:</p>
+<div class="highlight-python"><div class="highlight"><pre>rpm -ivh --nomd5 &lt;path to the NCPA RPM&gt;
+</pre></div>
+</div>
+<p>Now the NCPA services are installed and started.</p>
+<p>You will need to modify /usr/local/ncpa/etc/ncpa.cfg to specify a community
+string in the [api] section and set it to your token:</p>
+<div class="highlight-python"><div class="highlight"><pre>[api]
+community_string=&lt;your token&gt;
+</pre></div>
+</div>
+<p>After making changes to the ncpa.cfg, restart the ncpa_listener for the changes
+to take affect:</p>
+<div class="highlight-python"><div class="highlight"><pre>/etc/init.d/ncpa_listener restart
+</pre></div>
+</div>
+<p>To test your installation see <a class="reference internal" href="#testing-your-installation">Testing Your Installation</a>.</p>
+</div>
+<div class="section" id="installing-ncpa-using-deb-packaging">
+<h2>Installing NCPA Using DEB Packaging<a class="headerlink" href="#installing-ncpa-using-deb-packaging" title="Permalink to this headline">¶</a></h2>
+<p>This section is largely the same as the RPM section above. The DEB package must be downloaded to the server you want to monitor, and then it needs to be installed. The latest DEB package is located as follows</p>
+<ul>
+<li><dl class="first docutils">
+<dt>Debian/Ubuntu</dt>
+<dd><ul class="first last simple">
+<li><a class="reference external" href="http://assets.nagios.com/downloads/ncpa/download.php?type=deb&amp;arch=x86">32-bit</a></li>
+<li><a class="reference external" href="http://assets.nagios.com/downloads/ncpa/download.php?type=deb&amp;arch=x86_64">64-bit</a></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<p>Now that we have the DEB on our system, we simply need to install it. You can
+use any package manager you are comfortable with, but for the sake of portability,
+this example will use <em>dpkg</em> to install this particular package.</p>
+<p>To install it, simply use apt-get or dpkg. The following example shows how to
+do it with dpkg:</p>
+<div class="highlight-python"><div class="highlight"><pre>dpkg -i &lt;path to the NCPA deb&gt;
+</pre></div>
+</div>
+<p>Now the NCPA services are installed and started.</p>
+<p>You will need to modify /usr/local/ncpa/etc/ncpa.cfg to specify a community
+string in the [api] section and set it to your token:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="p">[</span><span class="n">api</span><span class="p">]</span>
+<span class="n">community_string</span><span class="o">=</span><span class="n">XXXXXX</span>
+</pre></div>
+</div>
+<p>After making changes to the ncpa.cfg, restart the ncpa_listener for the changes
+to take affect:</p>
+<div class="highlight-python"><div class="highlight"><pre>/etc/init.d/ncpa_listener restart
+</pre></div>
+</div>
+<p>To test your installation see <a class="reference internal" href="#testing-your-installation">Testing Your Installation</a>.</p>
+</div>
+<div class="section" id="install-ncpa-on-mac-os-x">
+<h2>Install NCPA on Mac OS X<a class="headerlink" href="#install-ncpa-on-mac-os-x" title="Permalink to this headline">¶</a></h2>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">The install process on Mac OS X is still experimental. If you would like to
+help make this process better, please get in contact with the author
+(whose address can be found at the bottom of the page.)</p>
+</div>
+<p>Download the <a class="reference external" href="https://assets.nagios.com/downloads/ncpa/ncpa-head.dmg">DMG here</a> .</p>
+<p>Download the <a class="reference external" href="http://assets.nagios.com/downloads/ncpa/download.php?type=dmg&amp;arch=x86">NCPA DMG here</a> . You will need to log in as root, or at least as a user who can run commands as root to continue with the installation. Then, depending on where you installed it (we will assume you downloaded it to your /tmp directory), run the following commands:</p>
+<div class="highlight-python"><div class="highlight"><pre>cd /tmp
+hdiutil attach /tmp/ncpa-&lt;version&gt;.dmg
+sudo zsh /Volumes/NCPA-&lt;version&gt;/install.sh
+</pre></div>
+</div>
+<p>What this script does:</p>
+<ul class="simple">
+<li>Creates the folder /usr/local/ncpa if it does not exist</li>
+<li>Moves all necessary files there</li>
+<li>Sets the owner of /usr/local/ncpa to nagios:nagcmd</li>
+<li>Sets the mode of /usr/local/ncpa to 775</li>
+<li>Creates the group nagcmd if it does not exist</li>
+<li>Creates the user nagios if it does not exist</li>
+<li>Starts the listener daemon</li>
+</ul>
+<p>If any of this fails, you will need to do the steps manually. The steps that may fail most often are adding users and groups. If they do, add the user &#8216;nagios&#8217; and make sure the group &#8216;nagcmd&#8217; exists and that &#8216;nagios&#8217; user is in the group &#8216;nagcmd&#8217;.</p>
+</div>
+<div class="section" id="testing-your-installation">
+<h2>Testing Your Installation<a class="headerlink" href="#testing-your-installation" title="Permalink to this headline">¶</a></h2>
+<div class="admonition warning">
+<p class="first admonition-title">Warning</p>
+<p class="last">As noted previously at the top of this page, if you get an error when trying
+to access this page immediately after installation, make sure your firewall
+is allowing traffic through on port 5693.</p>
+</div>
+<p>To ensure that installation was successful, try accessing the web interface of
+the agent. In order to this you will need to know</p>
+<ul class="simple">
+<li>The agent&#8217;s IP</li>
+<li>The token specified under [api] community_string (This is the <em>token</em> field in the Windows Installer)</li>
+</ul>
+<p>Once you have these pieces of information you can attempt to connect to the web interface.</p>
+<p>Where &lt;agent&#8217;s IP&gt; should be substituted for your agent&#8217;s IP address. When you access the web interface of NCPA you should be asked to provide the token from above.</p>
+<p>This means your installation is working! You can now proceed.</p>
+</div>
+</div>
+
+
+    </div>
+      
+  </div>
+</div>
+<footer class="footer">
+  <div class="container">
+    <p class="pull-right">
+      <a href="#">Back to top</a>
+      
+    </p>
+    <p>
+        &copy; Copyright 2013-2014, Nagios Enterprises LLC, Nicholas Scott.<br/>
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.2.2.<br/>
+    </p>
+  </div>
+</footer>
+  </body>
+</html>
