@@ -15,6 +15,10 @@ Contents:
    changes
    news
    changes
+   news
+   changes
+   news
+   changes
    introduction
    installation
    configuration
