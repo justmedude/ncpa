@@ -10,13 +10,7 @@ Contents:
 
 .. toctree::
    :maxdepth: 2
-   
-   news
-   changes
-   news
-   changes
-   news
-   changes
+
    news
    changes
    introduction
@@ -28,7 +22,7 @@ Contents:
 
 .. ~ Indices and tables
 .. ~ ==================
-.. ~ 
+.. ~
 .. ~ * :ref:`genindex`
 .. ~ * :ref:`search`
 
