@@ -1,38 +1,74 @@
-Nagios Cross Platform Agent (NCPA)
-==================================
+NCPA
+====
 
-The awesome NCPA agent - one agent to rule them all.
+.. image:: https://travis-ci.org/NagiosEnterprises/ncpa.svg?branch=master
+    :target: https://travis-ci.org/NagiosEnterprises/ncpa
 
-Downloading NCPA
-----------------
+The *Nagios Cross-Platform Agent*; a single monitoring agent that installs on all major operating systems. NCPA allows both active checks via check_ncpa.py and passive checks via NRDP. NCPA comes with a built-in web GUI, documentation, websocket graphing, and is secured with SSL by default.
 
-`Download from the Nagios Official Builds <http://assets.nagios.com/downloads/ncpa/download.php>`_.
+Downloads
+---------
 
-We currently build for Windows, Mac OS X, RHEL/CentOS 5/6/7, Fedora 21, Debian/Ubuntu, SLES 11/12, and OpenSUSE 11/12/13. If your operating system of choice is not on the list and none of the builds work for you, then you can request it to be added here at GitHub.
+Current versions:
 
-Building NCPA
++---------+-------------+-------------------------------------------------------+
+| Current | **2.2.1**   | `Downloads <https://www.nagios.org/ncpa/#downloads>`_ |
++---------+-------------+-------------------------------------------------------+
+
+`Older Versions <https://www.nagios.org/ncpa/archive.php>`_
+
+We currently build for the following operating systems:
+
+- Windows (Vista+)
+- Mac OS X (10.7+)
+- CentOS / RHEL 6, 7¹, 8¹
+- Debian 8, 9, 10¹
+- Ubuntu² 14.04, 16.04, 18.04
+- OpenSUSE Leap 15¹, Tumbleweed¹
+- SLES 11, 12¹
+- Oracle 6, 7¹, 8¹
+- Amazon Linux 2
+- Solaris 10, 11
+- AIX 7
+- Raspbian 10 (Buster)
+
+¹ Builds for 64-bit versions only
+² LTS are the only "supported" versions, although builds should work for non-LTS
+
+Older systems that have been supported by NCPA in the past:
+
+- Ubuntu 12.04 using NCPA 2.1.4
+- Debian 7 using NCPA 2.1.4
+- OpenSUSE 11, 12, 13 using NCPA 2.1.4
+- AIX 6 with NCPA 2.1.1
+- CentOS / RHEL 5 using NCPA 2.0.6
+- Oracle 5 using NCPA 2.0.6
+- Windows XP using NCPA 1.8.1
+
+Other systems we are working on builds for:
+
+- Fedora
+
+If you're looking for older builds you can find them `in the archives <https://www.nagios.org/ncpa/archive.php>`_.
+
+If your operating system of choice is not on the list and none of the builds work for you, then you can request it to be added here by creating a new GitHub issue.
+
+Documentation
 -------------
 
-While we recommend using our pre-built solutions above, if you'd like to build NCPA yourself there are a few things you may run into that can cause problems with your build.
+You can view the most current `HTML documentation <https://nagios.org/ncpa/help.php>`_ online or view your current NCPA version's documentation using the NCPA web GUI from an installed agent. This is recommended if you are using an older version, since some features may not be available but may be used in newer documents.
 
-There are known build issues involving *cx_Freeze*, if you run into an issue refer to the bug report on the *cx_Freeze* `project bug page <https://bitbucket.org/anthony_tuininga/cx_freeze/issue/42/recent-versions-of-gevent-break#comment-11421289>`_.
+Advanced
+--------
 
-RPM Build Location Errors
-*************************
+**Contributing**
 
-This is most relevant for **CentOS 5** and for **OpenSUSE 12/13** but may occur on other systems.
+We are always looking to improve NCPA. If you can add a feature or fix a bug, your help is greatly appreciated. Even testing is a great help! In order to contribute, you should start by following the instructions in the `contribute docs <https://github.com/NagiosEnterprises/ncpa/blob/master/CONTRIBUTING.rst>`_.
 
-If you get an error about not finding the .tar in the RPM build location you will need to create an `.rpmmacros` file in your home directory for the user you are building with that contains these three lines:
+**Building From Source**
 
-    %_topdir %(echo $HOME)/rpmbuild
-    %_smp_mflags -j3
-    %__arch_install_post /usr/lib/rpm/check-rpaths /usr/lib/rpm/check-buildroot
+While we recommend using the pre-built version above, sometimes you may find the need to build your own binaries from the source. Mostly, this consists of installing the newest version of *Python 2.7* and a few modules installed through pip. There are some issues on certain systems that are explained in the build docs below.
 
-Building on CentOS 5 and Mac OS X
-*********************************
-
-Building on **CentOS 5** and **Mac OS X** requires *pyOpenSSL* v0.12 instead of v0.13. In order to get ncpa to build you must change the `requirements.txt` file's *pyOpenSSL* requirement line to:
-
-    pyOpenSSL==0.12
-
-This should then allow ncpa to be built granting you have already installed all required dependencies.
++------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+
+| `Building for Windows <https://github.com/NagiosEnterprises/ncpa/blob/master/BUILDING.rst#building-on-windows>`_ | `Building for Linux <https://github.com/NagiosEnterprises/ncpa/blob/master/BUILDING.rst#building-on-linux>`_ | `Building for Mac OS X <https://github.com/NagiosEnterprises/ncpa/blob/master/BUILDING.rst#building-on-mac-os-x>`_ |
++------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+

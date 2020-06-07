@@ -1,47 +1,47 @@
-"""
-Implements a simple service using cx_Freeze.
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
-See below for more information on what methods must be implemented and how they
-are called.
-"""
-
-import cx_Logging
-import cx_Threads
+import threading
 import ConfigParser
 import glob
 import logging
 import logging.handlers
 import os
 import time
+import datetime
 import sys
 from gevent.pywsgi import WSGIServer
 from gevent.pool import Pool
-# DO NOT REMOVE THIS, THIS FORCES cx_Freeze to include the library
-# DO NOT REMOVE ANYTHING BELOW THIS LINE
 import passive.nrds
 import passive.nrdp
+import passive.kafkaproducer
 import listener.server
 import listener.psapi
 import listener.windowscounters
 import listener.windowslogs
 import listener.certificate
+import listener.database
 import jinja2.ext
-import webhandler
 import filename
 import ssl
+import gevent.builtins
 from gevent import monkey
-import ssl_patch
+from geventwebsocket.handler import WebSocketHandler
 
-monkey.patch_all(subprocess=True)
-
+monkey.patch_all(subprocess=True, thread=False)
 
 class Base(object):
+
     # no parameters are permitted; all configuration should be placed in the
     # configuration file and handled in the Initialize() method
     def __init__(self, debug=False):
         logging.getLogger().handlers = []
-        self.stopEvent = cx_Threads.Event()
+        self.stopEvent = threading.Event()
         self.debug = debug
+
+        # Set up database
+        self.db = listener.database.DB()
+        self.db.setup()
 
     def determine_relative_filename(self, file_name, *args, **kwargs):
         """Gets the relative pathname of the executable being run.
@@ -76,9 +76,6 @@ class Base(object):
         config = dict(self.config.items(self.c_type, 1))
 
         # Now we grab the logging specific items
-        log_level_str = config.get('loglevel', 'INFO').upper()
-        log_level = getattr(logging, log_level_str, logging.INFO)
-
         log_file = os.path.normpath(config['logfile'])
         if not os.path.isabs(log_file):
             log_file = self.determine_relative_filename(log_file)
@@ -96,6 +93,10 @@ class Base(object):
         file_handler.setFormatter(file_format)
 
         logging.getLogger().addHandler(file_handler)
+
+        # Set log level
+        log_level_str = config.get('loglevel', 'INFO').upper()
+        log_level = getattr(logging, log_level_str, logging.INFO)
         logging.getLogger().setLevel(log_level)
 
     # called when the service is starting immediately after Initialize()
@@ -104,61 +105,108 @@ class Base(object):
     # stop the service
     def Run(self):
         self.start()
-        self.stopEvent.Wait()
+        self.stopEvent.wait()
 
     # called when the service is being stopped by the service manager GUI
     def Stop(self):
-        pass
-        self.stopEvent.Set()
+        self.stopEvent.set()
 
 
 class Listener(Base):
 
     def start(self):
-        """Kickoff the TCP Server
 
-        """
+        # Check if there is a start delay
         try:
-            address = self.config.get('listener', 'ip')
-            port = self.config.getint('listener', 'port')
+            delay_start = self.config.get('listener', 'delay_start')
+            if delay_start:
+                logging.info('Delayed start in configuration. Waiting %s seconds to start.', delay_start)
+                time.sleep(int(delay_start))
+        except Exception:
+            pass
+
+        # Run DB maintenance on start
+        self.db.run_db_maintenance(self.config)
+
+        try:
+            try:
+                address = self.config.get('listener', 'ip')
+            except Exception:
+                self.config.set('listener', 'ip', '0.0.0.0')
+                address = '0.0.0.0'
+
+            try:
+                port = self.config.getint('listener', 'port')
+            except Exception:
+                self.config.set('listener', 'port', 5693)
+                port = 5693
+
+            # Make sure these values are not empty
+            if not address:
+                address = '0.0.0.0'
+            if not port:
+                port = 5693
+
             listener.server.listener.config_files = self.config_filenames
             listener.server.listener.tail_method = listener.windowslogs.tail_method
             listener.server.listener.config['iconfig'] = self.config
 
             try:
+                ssl_str_version = self.config.get('listener', 'ssl_version')
                 ssl_version = getattr(ssl, 'PROTOCOL_' + ssl_str_version)
             except:
                 ssl_version = getattr(ssl, 'PROTOCOL_TLSv1')
                 ssl_str_version = 'TLSv1'
+
+            try:
+                ssl_str_ciphers = self.config.get('listener', 'ssl_ciphers')
+            except Exception:
+                ssl_str_ciphers = None
+
             logging.info('Using SSL version %s', ssl_str_version)
 
             user_cert = self.config.get('listener', 'certificate')
 
             if user_cert == 'adhoc':
                 basepath = self.determine_relative_filename('')
-                cert, key = listener.certificate.create_self_signed_cert(basepath, 'ncpa.crt', 'ncpa.key')
+                certpath = os.path.abspath(os.path.join(basepath, 'var'))
+                cert, key = listener.certificate.create_self_signed_cert(certpath, 'ncpa.crt', 'ncpa.key')
             else:
                 cert, key = user_cert.split(',')
-            ssl_context = {'certfile': cert, 'keyfile': key}
+
+            # Create SSL context that will be passed to the server
+            ssl_context = {
+                'certfile': cert,
+                'keyfile': key,
+                'ssl_version': ssl_version
+            }
+
+            # Add SSL cipher list if one is given
+            if ssl_str_ciphers:
+                ssl_context['ciphers'] = ssl_str_ciphers
+
+            # Create connection pool
+            try:
+                max_connections = self.config_parser.get('listener', 'max_connections')
+            except Exception:
+                max_connections = 200
 
             listener.server.listener.secret_key = os.urandom(24)
             http_server = WSGIServer(listener=(address, port),
                                      application=listener.server.listener,
-                                     handler_class=webhandler.PatchedWSGIHandler,
-                                     spawn=Pool(100),
+                                     handler_class=WebSocketHandler,
+                                     spawn=Pool(max_connections),
                                      **ssl_context)
             http_server.serve_forever()
-        except Exception, e:
+        except Exception as e:
             logging.exception(e)
 
     # called when the service is starting
     def Initialize(self, config_file):
         self.c_type = 'listener'
-        self.config_filenames = [self.determine_relative_filename(
-	    os.path.join('etc', 'ncpa.cfg'))]
-	self.config_filenames.extend(sorted(glob.glob(
-	    self.determine_relative_filename(os.path.join(
-	        'etc', 'ncpa.cfg.d', '*.cfg')))))
+        self.config_filenames = [self.determine_relative_filename(os.path.join('etc', 'ncpa.cfg'))]
+        self.config_filenames.extend(sorted(glob.glob(self.determine_relative_filename(os.path.join(
+            'etc', 'ncpa.cfg.d', '*.cfg')))))
         self.parse_config()
         self.setup_logging()
         self.setup_plugins()
@@ -177,41 +225,76 @@ class Passive(Base):
         - Terminate in a timely fashion
         """
         handlers = self.config.get('passive', 'handlers').split(',')
+        run_time = time.time()
 
+        # Empty passive handlers will skip trying to run any handlers
+        if handlers[0] == 'None' or handlers[0] == '':
+            return
+
+        # Runs either nrds, nrdp or kafka
         for handler in handlers:
             try:
+                handler = handler.strip()
                 module_name = 'passive.%s' % handler
                 __import__(module_name)
                 tmp_handler = sys.modules[module_name]
-            except ImportError, e:
+            except ImportError as e:
                 logging.error('Could not import module passive.%s, skipping. %s' % (handler, str(e)))
                 logging.exception(e)
             else:
                 try:
                     ins_handler = tmp_handler.Handler(self.config)
-                    ins_handler.run()
+                    ins_handler.run(run_time)
                     logging.debug('Successfully ran handler %s' % handler)
-                except Exception, e:
+                except Exception as e:
                     logging.exception(e)
 
+    # Actual method that loops doing passive checks forever, using the sleep
+    # config setting to wait for the next time to run
+    #
+    #   Removed the "self.parse_config()" after the run_all_handlers
+    #   ----------
+    #   Prior to 2.0.0, the configuration could be changed without restarting
+    #   the NCPA passive service which caused the plugins to fail to run
+    #   after the first time it ran, re-loading the improper path that hadn't
+    #   been updated. This really isn't necessary, and has been removed to
+    #   preserve the config that was being ran from the start.
+    # 
     def start(self):
+
+        # Check if there is a start delay
+        try:
+            delay_start = self.config.get('passive', 'delay_start')
+            if delay_start:
+                logging.info('Delayed start in configuration. Waiting %s seconds to start.', delay_start)
+                time.sleep(int(delay_start))
+        except Exception:
+            pass
+
+        # Set next DB maintenance period to +1 day
+        self.db.run_db_maintenance(self.config)
+        next_db_maintenance = datetime.datetime.now() + datetime.timedelta(days=1)
+
         try:
             while True:
                 self.run_all_handlers()
-                self.parse_config()
-                wait_time = self.config.getint('passive', 'sleep')
-                time.sleep(wait_time)
-        except Exception, e:
+
+                # Do DB maintenance if the time is greater than next DB maintenance run
+                if datetime.datetime.now() > next_db_maintenance:
+                    self.db.run_db_maintenance(self.config)
+                    next_db_maintenance = datetime.datetime.now() + datetime.timedelta(days=1)
+
+                time.sleep(1)
+        except Exception as e:
             logging.exception(e)
 
-    # called when the service is starting
+    # Called when the service is starting to initiate variables required by the main
+    # passive "run_all_handlers" method
     def Initialize(self, config_file):
         self.c_type = 'passive'
-        self.config_filenames = [self.determine_relative_filename(
-	    os.path.join('etc', 'ncpa.cfg'))]
-	self.config_filenames.extend(sorted(glob.glob(
-	    self.determine_relative_filename(os.path.join(
-	        'etc', 'ncpa.cfg.d', '*.cfg')))))
+        self.config_filenames = [self.determine_relative_filename(os.path.join('etc', 'ncpa.cfg'))]
+        self.config_filenames.extend(sorted(glob.glob(self.determine_relative_filename(os.path.join(
+            'etc', 'ncpa.cfg.d', '*.cfg')))))
         self.parse_config()
         self.setup_logging()
         self.setup_plugins()

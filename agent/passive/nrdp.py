@@ -1,10 +1,10 @@
 import xml.dom.minidom
 import logging
+import listener.server
 import nagioshandler
 import utils
 from itertools import izip
 import ConfigParser
-import listener.server
 
 
 class Handler(nagioshandler.NagiosHandler):
@@ -81,7 +81,7 @@ class Handler(nagioshandler.NagiosHandler):
         return check_result
 
     @staticmethod
-    def get_xml_of_checkresults(checks):
+    def get_xml_of_checkresults(doc, checks, run_time):
         """
         Gets XML of all check results in NRDP config section as
         an XML document.
@@ -89,17 +89,18 @@ class Handler(nagioshandler.NagiosHandler):
         :return: The XML Document to be returned to Nagios
         :rtype: xml.dom.minidom.Document
         """
-        doc = xml.dom.minidom.Document()
         check_results = doc.createElement('checkresults')
         doc.appendChild(check_results)
 
         for check in checks:
-            element = Handler.make_xml(check)
-            check_results.appendChild(element)
+            if check.needs_to_run():
+                element = Handler.make_xml(check)
+                check.set_next_run(run_time)
+                check_results.appendChild(element)
 
-        return doc.toxml()
+        return doc
 
-    def run(self):
+    def run(self, run_time):
         """
         Sends all the commands to the agent and then submits them
         via NRDP to Nagios.
@@ -107,8 +108,19 @@ class Handler(nagioshandler.NagiosHandler):
         :return: 0 on success, 1 on error
         :rtype : int
         """
+        logging.debug("Establishing passive handler: NRDP")
         super(Handler, self).run()
-        checkresults = Handler.get_xml_of_checkresults(self.checks)
+
+        doc = xml.dom.minidom.Document()
+        doc = Handler.get_xml_of_checkresults(doc, self.checks, run_time)
+
+        # Verify there are any checks to send
+        checks = doc.getElementsByTagName('checkresult')
+        if len(checks) is 0:
+            logging.debug("No NRDP checks. Skipping NRDP send.")
+            return
+
+        checkresults = doc.toxml()
         self.submit_to_nagios(checkresults)
 
     def guess_hostname(self):
@@ -129,6 +141,7 @@ class Handler(nagioshandler.NagiosHandler):
         :type ret_xml: unicode
         :rtype : None
         """
+
         tree = xml.dom.minidom.parseString(ret_xml)
 
         try:
@@ -153,14 +166,36 @@ class Handler(nagioshandler.NagiosHandler):
         :type checkresults: xml.dom.minidom.Document
         :rtype: None
         """
-        server = self.config.get('nrdp', 'parent')
-        token = self.config.get('nrdp', 'token')
 
-        # The POST requests don't follow redirects, so we have to make sure
-        # the address is completely accurate.
-        if not server.endswith('/'):
-            server += '/'
+        try:
+            server = self.config.get('nrdp', 'parent')
+            token = self.config.get('nrdp', 'token')
+        except Exception as ex:
+            logging.exception(ex)
 
-        logging.debug('XML to be submitted: %s', checkresults)
-        ret_xml = utils.send_request(url=server, token=token, XMLDATA=checkresults, cmd='submitcheck')
-        Handler.log_result(ret_xml)
+        # Get the list of servers (and tokens, if available)
+        servers = server.split(',')
+        tokens = token.split(',')
+
+        for i, server in enumerate(servers):
+
+            # Grab a token, or the last token
+            try:
+                tmp_token = tokens[i]
+                token = tmp_token
+            except IndexError:
+                pass
+
+            # The POST requests don't follow redirects, so we have to make sure
+            # the address is completely accurate.
+            if not server.endswith('/'):
+                server += '/'
+
+            logging.debug('XML to be submitted: %s', checkresults)
+            ret_xml = utils.send_request(url=server, token=token, XMLDATA=checkresults, cmd='submitcheck')
+
+            try:
+                Handler.log_result(ret_xml)
+            except Exception as ex:
+                logging.debug(ret_xml)
+                logging.exception(ex)

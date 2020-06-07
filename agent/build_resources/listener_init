@@ -6,54 +6,59 @@
 # Required-Stop:     $remote_fs $syslog
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Description:       Enable NCPA listener.
+# Short-Description: This manages the NCPA Listener service
+# Description:       NCPA is a cross platform monitoring agent for Nagios that requires no dependencies.
 ### END INIT INFO
 
-BASEDIR="/usr/local/ncpa"
+# init.d / servicectl compatibility (openSUSE)
+if [ -f /etc/rc.status ]; then
+    . /etc/rc.status
+    rc_reset
+fi
 
+# Source function library
+if [ -f /etc/rc.d/init.d/functions ]; then
+    . /etc/rc.d/init.d/functions
+fi
+
+_BASEDIR_
+
+# Start NCPA Listener service
 start() {
-        (
-            cd $BASEDIR
-            ./ncpa_posix_listener --start
-        )
-        echo "Started listener..."
+    if [ -n "$(type -t action)" ] && [ "$(type -t action)" = function ]; then
+        action "Starting NCPA Listener:" $BASEDIR/ncpa_listener --start
+    else
+        echo -e "Started NCPA Listener"
+        $BASEDIR/ncpa_listener --start
+    fi
 }
-# Restart the service
+
+# Stop NCPA Listener service
 stop() {
-        (
-            cd $BASEDIR
-            ./ncpa_posix_listener --stop
-            echo "Exited."
-        )   
-}
-# Get the status
-status() {
-        if [ -f "/usr/local/ncpa/var/ncpa_listener.pid" ];
-        then
-            pid=`cat /usr/local/ncpa/var/ncpa_listener.pid`
-            echo "Process running with PID $pid"
-        else
-            echo "Process is not running."
-        fi
+    if [ -n "$(type -t action)" ] && [ "$(type -t action)" = function ]; then
+        action "Stopping NCPA Listener:" $BASEDIR/ncpa_listener --stop
+    else
+        echo -e "Stopped NCPA Listener"
+        $BASEDIR/ncpa_listener --stop
+    fi
 }
 
-
-### main logic ###
+# Main init script logic
 case "$1" in
-  start)
+    start)
         start
         ;;
-  stop)
+    stop)
         stop
         ;;
-  status)
-        status
+    status)
+        $BASEDIR/ncpa_listener --status
         ;;
-  restart|reload|condrestart)
+    restart|reload|condrestart)
         stop
         start
         ;;
-  *)
+    *)
         echo $"Usage: $0 {start|stop|restart|reload|status}"
         exit 1
 esac

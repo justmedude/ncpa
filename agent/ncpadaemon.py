@@ -1,10 +1,3 @@
-u"""
-Provides a simple Daemon class to ease the process of forking a
-python application on Unix systems.
-"""
-
-VERSION = (1, 3, 1)
-
 import ConfigParser
 import errno
 import glob
@@ -18,11 +11,13 @@ import signal
 import sys
 import time
 import filename
+import listener.database
+import tempfile
 from itertools import imap
 from io import open
 
+
 class Daemon(object):
-    u"""Daemon base class"""
 
     def __init__(self):
         u"""Override to change where the daemon looks for config information.
@@ -47,12 +42,28 @@ class Daemon(object):
         process is not yet known.
         """
 
+        # We need to chown any temp files we wrote out as root (or any other user)
+        # to the currently set user and group so checks don't error out
+        try:
+            tmpdir = os.path.join(tempfile.gettempdir())
+            for file in os.listdir(tmpdir):
+                if os.path.isfile(file):
+                    if 'ncpa-' in file:
+                        self.chown(os.path.join(tmpdir, file))
+        except OSError, e:
+            logging.exception(e)
+            pass
+
+
     def setup_user(self):
         u"""Override to perform setup tasks with user privileges.
 
         Like setup_root, the terminal is still attached and the pid is
         temporary.  However, the process has dropped root privileges.
         """
+        # Set up database
+        self.db = listener.database.DB()
+        self.db.setup()
 
     def run(self):
         u"""Override.
@@ -69,6 +80,8 @@ class Daemon(object):
             self.start()
         elif action == u'stop':
             self.stop()
+        elif action == u'status':
+            self.status()
         else:
             raise ValueError(action)
 
@@ -81,6 +94,9 @@ class Daemon(object):
         p.add_option(u'-s', u'--stop', dest=u'action',
                      action=u'store_const', const=u'stop', default=u'start',
                      help=u'Stop the daemon')
+        p.add_option(u'--status', dest=u'action',
+                     action=u'store_const', const=u'status', default=u'start',
+                     help=u'Status of the daemon')
         p.add_option(u'-c', dest=u'config_filename',
                      action=u'store', default=self.default_conf,
                      help=u'Specify alternate configuration file name')
@@ -96,31 +112,38 @@ class Daemon(object):
         u"""Read basic options from the daemon config file"""
         self.config_filenames = [self.options.config_filename]
         self.config_filenames.extend(sorted(glob.glob(os.path.join(self.options.config_filename + ".d", "*.cfg"))))
-        cp = ConfigParser.ConfigParser(defaults={
+
+        # Set defaults for below section
+        defaults = {
             u'logmaxmb': u'5',
             u'logbackups': u'5',
-            u'loglevel': u'info',
-            u'uid': unicode(os.getuid()),
-            u'gid': unicode(os.getgid()),
-        })
+            u'loglevel': u'warning',
+            u'uid': u'nagios',
+            u'gid': u'nagios',
+        }
+
+        cp = ConfigParser.ConfigParser(defaults)
         cp.optionxform = unicode
         cp.read(self.config_filenames)
         self.config_parser = cp
 
         try:
-            self.uid, self.gid = list(imap(int, get_uid_gid(cp, self.section)))
+            self.uid, self.gid, self.username = get_uid_gid(cp, self.section)
         except ValueError, e:
             sys.exit(unicode(e))
 
         self.logmaxmb = int(cp.get(self.section, u'logmaxmb'))
         self.logbackups = int(cp.get(self.section, u'logbackups'))
-        self.pidfile = os.path.abspath(os.path.join(filename.get_dirname_file(), cp.get(self.section, u'pidfile')))
-        self.logfile = os.path.abspath(os.path.join(filename.get_dirname_file(), cp.get(self.section, u'logfile')))
+        self.pidfile = os.path.abspath(os.path.join(filename.get_dirname_file(),
+                                                    cp.get(self.section, u'pidfile')))
+        self.logfile = os.path.abspath(os.path.join(filename.get_dirname_file(),
+                                                    cp.get(self.section, u'logfile')))
         self.loglevel = cp.get(self.section, u'loglevel')
 
     def on_sigterm(self, signalnum, frame):
-        u"""Handle segterm by treating as a keyboard interrupt"""
-        raise KeyboardInterrupt(u'SIGTERM')
+        u"""Handle sigterm by treating as a keyboard interrupt"""
+        self.remove_pid()
+        sys.exit(0)
 
     def add_signal_handlers(self):
         u"""Register the sigterm handler"""
@@ -128,40 +151,51 @@ class Daemon(object):
 
     def start(self):
         u"""Initialize and run the daemon"""
-        # The order of the steps below is chosen carefully.
-        # - don't proceed if another instance is already running.
+
+        # Don't proceed if another instance is already running.
         self.check_pid()
-        # - start handling signals
+
+        # Start handling signals
         self.add_signal_handlers()
-        # - create log file and pid file directories if they don't exist
+
+        # Create log file and pid file directories if they don't exist
         self.prepare_dirs()
 
-        # - start_logging must come after check_pid so that two
+        # Start_logging must come after check_pid so that two
         # processes don't write to the same log file, but before
         # setup_root so that work done with root privileges can be
         # logged.
         try:
-            # - set up with root privileges
+
+            # Setup with root privileges
             self.setup_root()
-            # - drop privileges
+
+            # Start logging
             self.start_logging()
-            # - check_pid_writable must come after set_uid in order to
-            # detect whether the daemon user can write to the pidfile
+
+            # Drop permissions to specified user/group in ncpa.cfg
+            self.set_uid_gid()
+
+            # Function check_pid_writable must come after set_uid_gid in 
+            # order to detect whether the daemon user can write to the pidfile
             self.check_pid_writable()
-            # - set up with user privileges before daemonizing, so that
-            # startup failures can appear on the console
+
+            # Set up with user before daemonizing, so that startup failures
+            # can appear on the console
             self.setup_user()
 
-            # - daemonize
+            # Daemonize
             if self.options.daemonize:
                 daemonize()
+
         except:
             logging.exception(u"failed to start due to an exception")
             raise
 
-        # - write_pid must come after daemonizing since the pid of the
+        # Function write_pid must come after daemonizing since the pid of the
         # long running process is known only after daemonizing
         self.write_pid()
+
         try:
             logging.info(u"started")
             try:
@@ -179,23 +213,33 @@ class Daemon(object):
         u"""Stop the running process"""
         if self.pidfile and os.path.exists(self.pidfile):
             pid = int(open(self.pidfile).read())
-            os.kill(pid, signal.SIGTERM)
-            # wait for a moment to see if the process dies
-            for n in xrange(10):
-                time.sleep(0.25)
-                try:
-                    # poll the process state
+            try:
+                os.kill(pid, signal.SIGTERM)
+                # wait for a moment to see if the process dies
+                for n in xrange(10):
+                    time.sleep(0.25)
                     os.kill(pid, 0)
-                except OSError, why:
-                    if why.errno == errno.ESRCH:
-                        # process has died
-                        break
-                    else:
-                        raise
+            except OSError as err:
+                pass
             else:
                 sys.exit(u"pid %d did not die" % pid)
         else:
             sys.exit(u"not running")
+
+    def status(self):
+        if self.pidfile and os.path.exists(self.pidfile):
+            pid = int(open(self.pidfile).read())
+
+            # Check if the value is in ps aux
+            if pid > 0:
+                try:
+                    os.kill(pid, 0)
+                    sys.exit(u"NCPA %s: Service is running. (pid %d)" % (self.section.title(), pid))
+                except OSError as err:
+                    if err.errno == errno.ESRCH:
+                        sys.exit(u"NCPA %s: Service is not running but pid file exists." % self.section.title())
+        else:
+            sys.exit(u"NCPA %s: Service is not running." % self.section.title())
 
     def prepare_dirs(self):
         u"""Ensure the log and pid file directories exist and are writable"""
@@ -207,18 +251,21 @@ class Daemon(object):
                 os.makedirs(parent)
                 self.chown(parent)
 
-    def set_uid(self):
+    def set_uid_gid(self):
         u"""Drop root privileges"""
-        if self.gid:
-            try:
-                os.setgid(self.gid)
-            except OSError, err:
-                logging.exception(err)
-        if self.uid:
-            try:
-                os.setuid(self.uid)
-            except OSError, err:
-                logging.exception(err)
+
+        # Get set of gids to set for OS groups
+        gids = [ self.gid ]
+        if self.username:
+            gids = [ g.gr_gid for g in grp.getgrall() if self.username in g.gr_mem ]
+
+        # Set the group, alt groups, and user
+        try:
+            os.setgid(self.gid)
+            os.setgroups(gids)
+            os.setuid(self.uid)
+        except Exception as err:
+            logging.exception(err)
 
     def chown(self, fn):
         u"""Change the ownership of a file to match the daemon uid/gid"""
@@ -231,7 +278,7 @@ class Daemon(object):
                 gid = os.stat(fn).st_gid
             try:
                 os.chown(fn, uid, gid)
-            except OSError, err:
+            except OSError as err:
                 sys.exit(u"can't chown(%s, %d, %d): %s, %s" %
                 (repr(fn), uid, gid, err.errno, err.strerror))
 
@@ -275,11 +322,13 @@ class Daemon(object):
             try:
                 pid = int(open(self.pidfile, u'rb').read().decode(u'utf-8').strip())
             except ValueError:
-                msg = u'pidfile %s contains a non-integer value' % self.pidfile
-                sys.exit(msg)
+                # PID does not exist
+                # This is likely caused by system issues and does not mean NCPA is not running
+                os.remove(self.pidfile)
+                return
             try:
                 os.kill(pid, 0)
-            except OSError, err:
+            except OSError as err:
                 if err.errno == errno.ESRCH:
                     # The pid doesn't exist, so remove the stale pidfile.
                     os.remove(self.pidfile)
@@ -320,33 +369,26 @@ class Daemon(object):
 
 
 def get_uid_gid(cp, section):
-    u"""Get a numeric uid/gid from a configuration file.
+    user_uid = cp.get(section, 'uid')
+    user_gid = cp.get(section, 'gid')
 
-    May return an empty uid and gid.
-    """
-    uid = cp.get(section, u'uid')
-    if uid:
-        try:
-            uid = int(uid)
-        except ValueError:
-            # convert user name to uid
-            try:
-                uid = pwd.getpwnam(uid)[2]
-            except KeyError:
-                raise ValueError(u"user is not in password database: %s" % uid)
+    if not isinstance(user_uid, int):
+        if not user_uid.isdigit():
+            username = user_uid
+            u = pwd.getpwnam(user_uid)
+            uid = u.pw_uid
+        else:
+            uid = int(user_uid)
+            username = pwd.getpwuid(user_uid).pw_name
 
-    gid = cp.get(section, u'gid')
-    if gid:
-        try:
-            gid = int(gid)
-        except ValueError:
-            # convert group name to gid
-            try:
-                gid = grp.getgrnam(gid)[2]
-            except KeyError:
-                raise ValueError(u"group is not in group database: %s" % gid)
+    if not isinstance(user_gid, int):
+        if not user_gid.isdigit():
+            g = grp.getgrnam(user_gid)
+            gid = g.gr_gid
+        else:
+            gid = int(user_gid)
 
-    return uid, gid
+    return uid, gid, username
 
 
 def daemonize():
@@ -363,7 +405,7 @@ def daemonize():
     for i in xrange(3):
         try:
             os.dup2(null, i)
-        except OSError, e:
+        except OSError as e:
             if e.errno != errno.EBADF:
                 raise
     os.close(null)

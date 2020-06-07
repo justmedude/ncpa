@@ -1,63 +1,93 @@
-So You Want To Contribute?
-==========================
+Contributing to NCPA
+====================
 
-Fantastic! Thats great news. Here is the skinny on how to contribute to this project.
+We are always happy to get pull request for really anything that will help make this project great. 
+Bug fixes and feature requests require a bit more effort to get included but if you follow this then your 
+pull request should get included in no time.
 
-Make Your Own Repo
-------------------
+Note that you don't need to know how to write Python in order to contribute! Testing our latest builds in 
+your environment is also extremely helpful. Any information on problems you face could help us make NCPA
+even better.
 
-Clearly, you're probably familiar with making your own repo with this same
-source code. Go ahead and do that. Make your changes. Test them to make sure
-they work! We absolutely will not accept anything that doesn't pass muster.
-Wondering what will pass muster? Here are a few things we will look for:
+Create Your Repo
+~~~~~~~~~~~~~~~~
 
-Is it PEP8?
------------
+Create your own fork on GitHub to commit your changes to. You may want to use your own branch once you fork 
+to make multiple pull requests easier.
 
-Clearly, this nitpicky, but it is a requirement. So please, follow PEP8 to the closest you possibly can. We can
-fix minor items that don't abide by PEP8, but please make it close.
+Build Your Development Environment
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Does it pass the tests?
------------------------
+In order to get your NCPA development environment up and running you need to make sure all the pre-reqs have 
+been installed and working.
 
-Any merge that will be accepted *absolutely must* pass the following tests::
+**Set Up Windows Environment**
 
-    git pull <your repo> your-repo
-    cd ncpa-branch-pull
-    git checkout <your dev branch>
-    python run_tests.py agent/ client/
+You will need to install git for windows. Then, download and install:
 
-If it does not pass this, we will not merge the pull request. So please, run
-these tests before submitting your pull request!
+* `Python 2.7.14 on Windows <https://www.python.org/downloads/release/python-2714/>`_
+* OpenSSL for Windows (`Download <https://slproweb.com/download/Win32OpenSSL-1_1_0c.exe>`_)
 
-Is the change intelligible?
----------------------------
+To set up the python requirements, in `cmd.exe` clone the NCPA repo and run::
 
-Does the change you pushed make sense? WE LOVE code that is functional, and we
-will definitely work with pull requests that are functional but might be
-questionable in implementation. So please, even if you feel your change is
-a one-off or not proper, submit it for review! We want the code to be proper and
-maintainable just as you. We will work with any change that is movement towards
-something that makes the software fit the needs of the user better.
+	python -m pip install -r resources/requires.txt
 
-Making Sure Your Changes Merge
-------------------------------
 
-Since you took the time to change the code, its going to be a lot easier for you
-to ensure the code merges properly.  Otherwise, someone who isn't familiar with
-your changes might make the changes and be caught in an awkward situation.
-We'll just assume your repo is called *<your repo>* and you're done all work on
-your *development* branch.  Please run the following, and if a merge conflict
-pops up, note it in the pull request::
+**Set Up Linux / Mac OS X Environment**
 
-    cd <your ncpa repo>
-    git checkout development
-    python run_tests.py agent/ client/ # This better pass!
-    git add remote upstream https://github.com/NagiosEnterprises/ncpa
-    git merge upstream/development
+You will need `git` installed in order to clone the repo to do the following.
 
-Send Us A Pull Request
-----------------------
+Once cloned, to install the prereqs::
 
-Send it! Wooo!
+    cd ncpa
+    ./build/scripts/linux_build_prereqs.sh
+    ./build/scripts/linux_build_setup.sh
 
+Running NCPA in Development
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The below examples assume you are inside the NCPA git working directory.
+
+*Note: You can run both the listener and passive service at the same time.*
+
+**On Windows**
+
+NCPA Listener::
+
+	python agent/windows_debug.py listener
+
+NCPA Passive::
+
+	python agent/windows_debug.py passive
+
+**On Linux / Mac OS X**
+
+NCPA Listener::
+
+	python2.7 agent/ncpa_listener.py -n
+
+NCPA Passive::
+
+	python2.7 agent/ncpa_passive.py -n
+
+Code Readability
+~~~~~~~~~~~~~~~~
+
+We suggest following the `PEP8 <https://www.python.org/dev/peps/pep-0008/>`_ Python coding guidelines as
+close as possible, however it is not a requirement to get your code into NCPA. We will work with you to fix
+any issues that we see that involve PEP8 or our own styling guidelines.
+
+Test Your Code
+~~~~~~~~~~~~~~
+
+Be sure to thoroughly test your code. We do not have full tests set up yet and without them, we need to 
+be sure that each pull request does not break functionality. We can help you with this, and will test it
+ourselves too, but please make sure to verify your code before submitting your pull requst.
+
+Send A Pull Request
+~~~~~~~~~~~~~~~~~~~
+
+Once your code changes are completed, tested, and verified, send the pull request.
+
+The easist way to do this is `from inside GitHub <https://help.github.com/articles/creating-a-pull-request/>`_ 
+but you can also run it from the command line. 

@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Live Stats{% endblock %}
+
+{% block headercss %}
+<link href="/static/css/ncpa-graph.css" rel="stylesheet" />
+{% endblock %}
+
+{% block headerjs %}
+<script src="/static/js/smoothie.js"></script>
+<script type="text/javascript">
+function load_cmu() {
+    var cmu_div = $('#cmu');
+    var GRAPH_URL = '/graph/';
+    
+    var targets = ['cpu/percent', 'memory/virtual/percent'];
+    
+    $.each(targets, function(i, s) {
+        cmu_div.append($('<div>').load(GRAPH_URL + targets[i]));
+    });
+}
+
+function load_disk() {
+    var disk_div = $('#disk');
+    var DISK_API = '/api/disk/logical';
+    var DISK_BASE = '/graph/disk/logical/';
+    
+    $.getJSON(DISK_API, function(d) {
+        $.each(d.logical, function(key) {
+            var target = DISK_BASE + key + '/used_percent'
+            disk_div.append($('<div>').load(target));
+        })
+    });
+}
+
+function load_interface() {
+    var interface_div = $('#interface');
+    var INTERFACE_API = '/api/interface/';
+    var INTERFACE_BASE = '/graph/interface/';
+    var metrics = ['bytes_recv', 'bytes_sent'];
+    
+    $.getJSON(INTERFACE_API, function(d) {
+        $.each(d['interface'], function(key) {
+
+            if (key.indexOf("isatap") != -1 || key.indexOf("Loopback") != -1) {
+                return;
+            }
+
+            var sent = INTERFACE_BASE + encodeURIComponent(key) + '/bytes_sent?delta=1&units=K';
+            var recv = INTERFACE_BASE + encodeURIComponent(key) + '/bytes_recv?delta=1&units=K';
+
+            // Load each interface in it's own fill sized div
+            var s = $('<div>').css('width', '49%')
+                              .css('float', 'left')
+                              .load(sent);
+            var r = $('<div>').css('width', '49%')
+                              .css('float', 'right')
+                              .load(recv);
+            var box = $('<div>', { class: 'clear' }).append(s).append(r);
+
+            interface_div.append(box);
+        })
+    })
+}
+
+$(document).ready(function() {
+    
+    $('#live-nav').addClass('active');
+    load_cmu();
+    load_disk();
+    load_interface();
+
+    $(window).resize(function() {
+        resize_graphs();
+    });
+
+    $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+        resize_graphs();
+    });
+
+});
+
+function resize_graphs()
+{
+    $('.can-wrapper:visible').each(function(k, v) {
+        var w = $(v).width();
+        $(v).find('canvas').attr('width', w);
+    });
+}
+
+</script>
+{% endblock %}
+
+{% block undernav %}
+<div class="undernav">
+    <ul class='nav graph-tabs nav-tabs' style="margin-bottom: 20px;">
+        <li class='active'><a href='#cmu' class='graph-toggle' data-toggle='tab' data-load='cmu'>CPU/Memory</a></li>
+        <li><a href="#disk" class='graph-toggle' data-toggle='tab' data-load='disk'>Disks</a></li>
+        <li><a href="#interface" class='graph-toggle' data-toggle='tab' data-load='interface'>Interfaces</a></li>
+    </ul>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-sm-12">
+            <div class='tab-content'>
+                <div id='cmu' class='tab-pane active'></div>
+                <div id='disk' class='tab-pane'></div>
+                <div id='interface' class='tab-pane'></div>
+                <div class="clear"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

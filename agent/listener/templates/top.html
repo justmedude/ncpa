@@ -1,51 +1,13 @@
-<style>
-    th {
-        text-align: center;
-    }
-    
-    * {
-        font-size: 1em;
-    }
-    
-    tr.highlight {
-        background-color: teal;
-    }
-    
-    td.critical {
-        background-color: red;
-    }
-    
-    td.warning {
-        background-color: yellow;
-    }
-
-    .full-width {
-        width: 900px;
-        margin: 0 auto;
-    }
-
-    .spacer {
-        padding-right: 85px;
-    }
-
-    .form-inline {
-        margin: 0 auto;
-    }
-</style>
-
-<script src='/static/js/smoothie.js'></script>
-<script src='/static/js/jquery-1.8.3.min.js'></script>
-<link rel='stylesheet' href='/static/css/bootstrap.min.css' />
-<link rel='stylesheet' href='/static/css/bootstrap-responsive.min.css' />
-<script>
+{% block headerjs %}
+<script type="text/javascript">
     $(document).ready(function() {
         var display = {{ display }};
         var critical = {{ critical }};
         var warning = {{ warning }};
         var highlight = '{{ highlight }}';
-        var plbody = $('#top-container tbody');
-        var plhead = $('#top-container thead tr#titles')
-        var order = ['pid', 'name', 'username', 'cpu_percent', 'memory_percent'];
+        var plbody = $('table.processes tbody');
+        var plhead = $('table.processes thead tr#titles')
+        var order = ['pid', 'name', 'username', 'cpu_percent', 'mem_percent'];
         var current_pl = [];
 
         $('#highlight-input').on('keyup', function(e) {
@@ -95,10 +57,6 @@
             }
         });
 
-        $('.sortby').click(function(e) {
-            console.log($(e.target).val());
-        });
-
         var get_ws_address = function() {
             var loc = window.location;
             if(loc.protocol === 'https:') {
@@ -106,7 +64,7 @@
             } else {
                 var ws_proto = 'ws';
             }
-            var ws_loc = ws_proto + '://' + loc.hostname + ':5693/top-websocket/';
+            var ws_loc = ws_proto + '://' + loc.hostname + ':' + loc.port + '/ws/top';
             return ws_loc;
         }
         
@@ -114,11 +72,12 @@
             plhead.empty();
             
             $.each(order, function(i) {
-                var th = $('<th>', {id: order[i], text: order[i]});
-                var s = $('<span>', {class: 'signia', html: '&#x21a7;'});
+                var th = $('<th>', { id: order[i], text: order[i].replace(/_/g, ' ') });
+                var s = $('<span>', { class: 'signia', html: ' <i class="fa fa-caret-down fa-l"></i>'});
                 
-                if (order[i] == 'cpu_percent') {                    
+                if (order[i] == 'cpu_percent') {
                     th.append(s);
+                    th.css('width', '12%');
                     th.click(function() {
                         $('.signia').hide();
                         s.show();
@@ -127,8 +86,9 @@
                         create_plbody(current_pl);
                     });
                 }
-                if (order[i] == 'memory_percent') {                    
+                if (order[i] == 'mem_percent') {                    
                     th.append(s);
+                    th.css('width', '12%');
                     th.click(function() {
                         $('.signia').hide();
                         s.show();
@@ -138,26 +98,29 @@
                     });
                     s.hide();
                 }
+                if (order[i] == 'pid') {
+                    th.css('width', '8%');
+                }
                 
                 plhead.append(th);
             });
         }
         
         var cpu_compare = function(a, b) {
-            if (a.cpu_percent < b.cpu_percent) {
+            if (a.cpu_percent[0] < b.cpu_percent[0]) {
                 return 1
             }
-            if (a.cpu_percent > b.cpu_percent) {
+            if (a.cpu_percent[0] > b.cpu_percent[0]) {
                 return -1
             }
             return 0;
         }
         
         var mem_compare = function(a, b) {
-            if (a.memory_percent < b.memory_percent) {
+            if (a.mem_percent[0] < b.mem_percent[0]) {
                 return 1
             }
-            if (a.memory_percent > b.memory_percent) {
+            if (a.mem_percent[0] > b.mem_percent[0]) {
                 return -1
             }
             return 0;
@@ -170,9 +133,9 @@
             var fvirtual = parseFloat(virtual).toFixed(2) + '%';
             var fswap = parseFloat(swap).toFixed(2) + '%';
             
-            $('tr#load .current').text(fcpu);
-            $('tr#virtual .current').text(fvirtual);
-            $('tr#swap .current').text(fswap);
+            $('#load .current').text(fcpu);
+            $('#virtual .current').text(fvirtual);
+            $('#swap .current').text(fswap);
         }
         
         var create_plbody = function(pl) {
@@ -184,14 +147,18 @@
                 var p = pl[i];
                 var tr = $('<tr>', {id: p.pid});
                 $.each(order, function(j) {
-                    var td = $('<td>', {text: p[order[j]]});
+                    var data = p[order[j]];
+                    if (data.constructor === Array) {
+                        data = data[0];
+                    }
+                    var td = $('<td>', { text: data });
                     if (highlight != null && order[j] == 'name' && p[order[j]].indexOf(highlight) > -1) {
                         tr.addClass('highlight');
                     }
-                    if ((order[j] == 'cpu_percent' || order[j] == 'memory_percent') && critical > 0 && p[order[j]] > critical) {
+                    if ((order[j] == 'cpu_percent' || order[j] == 'mem_percent') && critical > 0 && p[order[j]][0] > critical) {
                         td.addClass('critical');
                     }
-                    else if ((order[j] == 'cpu_percent' || order[j] == 'memory_percent') && warning > 0 && p[order[j]] > warning) {
+                    else if ((order[j] == 'cpu_percent' || order[j] == 'mem_percent') && warning > 0 && p[order[j]][0] > warning) {
                         td.addClass('warning');
                     }
                     tr.append(td);    
@@ -222,30 +189,52 @@
         }
     })
 </script>
+{% endblock headerjs %}
 
 <div id='top-container'>
-
     <div class="well">
         <form class="form-inline" id="top-form">
-           <label class="control-label spacer">Highlight Name
-                <input class="span2" type="text" id="highlight-input" placeholder="Highlight Name">
-            </label>
-            <label class="control-label spacer">Warning Threshold
-                <input class="span2" type="text" id="warning-input" placeholder="Warning Threshold">
-            </label>
-            <label class="control-label spacer">Critical Threshold
-                <input class="span2" type="text" id="critical-input" placeholder="Critical Threshold">
-            </label>
+            <h1 class="fl">Top Processes</h1>
+            <div class="fl">
+                <div class="input-group" style="width: 320px;">
+                    <div class="input-group-addon">Highlight Name</div>
+                    <input class="form-control" type="text" id="highlight-input" placeholder="ncpa_listener.exe">
+                </div>
+            </div>
+            <div class="fr">
+                <i class="fa fa-question-circle pop-bind fa-14" role="button" tabindex="0" style="vertical-align: middle;" title="Warning and Critical Thresholds" data-placement="left" data-content="<p>Setting these values will highlight the CPU percent and Memory percent values that are over the threshold provided. Standard Nagios colors apply.</p>"></i>
+                <div class="input-group" style="width: 120px; margin-left: 1rem;">
+                    <div class="input-group-addon"><img src="../../static/img/warning.png" class="tt-bind" data-placement="bottom" title="Warning threshold"></div>
+                    <input type="text" class="form-control" id="warning-input" placeholder="Warning">
+                </div>
+                <div class="input-group" style="width: 120px;">
+                    <div class="input-group-addon"><img src="../../static/img/critical.png" class="tt-bind" data-placement="bottom" title="Critical threshold"></div>
+                    <input type="text" class="form-control" id="critical-input" placeholder="Critical">
+                </div>
+            </div>
+            <div class="clear"></div>
         </form>
     </div>
+</div>
 
-    <table class='table table-bordered table-condensed'>
-        <thead>
-            <tr id='load'><th class="top-col1">CPU Load</th><th colspan="999" class='current'></th></tr>
-            <tr id='virtual'><th class="top-col1">RAM Usage</th><th colspan="999" class='current'></th></tr>
-            <tr id='swap'><th class="top-col1">Swap Usage</th><th colspan="999" class='current'></th></tr>
-            <tr id='titles'></tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+<div class="container">
+    <div class="row" style="padding-bottom: 30px;">
+        <div class="col-sm-12">
+            <div style="padding-bottom: 20px;">
+                <table class="table table-top table-bordered table-condensed">
+                    <tr>
+                        <td id='load' style="width: 33.33%;"><b>CPU Percent</b> <span class='current'></span></td>
+                        <td id='virtual' style="width: 33.33%;"><b>RAM Usage</b> <span class='current'></span></td>
+                        <td id='swap' style="width: 33.33%;"><b>Swap Usage</b> <span class='current'></span></td>
+                    </tr>
+                </table>
+            </div>
+            <table class='processes table table-top table-hover table-bordered table-condensed'>
+                <thead>
+                    <tr id='titles'></tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
 </div>

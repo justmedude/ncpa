@@ -1,12 +1,12 @@
 import logging
 import platform
 import ncpacheck
-
-__author__ = 'nscott'
+import ConfigParser
 
 
 class NagiosHandler(object):
-    """These are intended for use to handle passive activities.
+    """
+    These are intended for use to handle passive activities.
 
     Provides common functions that would be necessary for
     periodic activities that get kicked off by the passive NCPA
@@ -22,7 +22,6 @@ class NagiosHandler(object):
         """
         self.config = config
         self.checks = None
-        logging.info('Establishing passive handler: {}'.format(self.__class__.__name__))
 
     def get_commands_from_config(self):
         """
@@ -31,19 +30,31 @@ class NagiosHandler(object):
         :return: dict of ncpacheck.NCPACheck objects
         :rtype: dict
         """
+
         logging.debug('Parsing config for passive commands...')
-        commands = self.config.items('passive checks')
+        commands = [x for x in self.config.items('passive checks') if x[0] not in self.config.defaults()]
         ncpa_commands = []
 
         for name_blob, instruction in commands:
             try:
-                hostname, servicename = name_blob.split('|', 1)
+                values = name_blob.split('|')
+                hostname = values[0]
+                servicename = values[1]
+
+                if len(values) > 2:
+                    duration = values[2]
+                else:
+                    try:
+                        duration = int(self.config.get('passive', 'sleep'))
+                    except Exception:
+                        duration = 300
+
                 if hostname.upper() == '%HOSTNAME%':
                     hostname = self.guess_hostname()
             except ValueError:
                 logging.error("Cannot parse passive directive for %s, name malformed, skipping.", name_blob)
                 continue
-            ncpa_commands.append(ncpacheck.NCPACheck(self.config, instruction, hostname, servicename))
+            ncpa_commands.append(ncpacheck.NCPACheck(self.config, instruction, hostname, servicename, duration))
 
         return ncpa_commands
 

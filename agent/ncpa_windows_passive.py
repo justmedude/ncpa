@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 #------------------------------------------------------------------------------
 # Config.py
 #   This file defines information about the service. The first four
@@ -41,6 +43,6 @@ DISPLAY_NAME = "NCPA Passive - %s"
 MODULE_NAME = "ncpa_windows"
 CLASS_NAME = "Passive"
 DESCRIPTION = "NCPA Passive Server"
-AUTO_START = True
+AUTO_START = False
 SESSION_CHANGES = False
 

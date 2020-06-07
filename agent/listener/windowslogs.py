@@ -44,8 +44,8 @@ by Log Names. It should also contain the summed value of all log counts. Perfdat
 all log counts as well with corresponding Log Names for labels. Standard out should also contain a human readable
 adaptation of the input Logged After specification.
 
-
 """
+
 import logging
 import nodes
 import datetime
@@ -54,23 +54,23 @@ import re
 import win32evtlogutil
 import win32con
 import pywintypes
+import database
+import time
+import server
+import ConfigParser
 
 
 class WindowsLogsNode(nodes.LazyNode):
+
     def walk(self, *args, **kwargs):
-        try:
-            logtypes = get_logtypes(kwargs)
-            filters = get_filter_dict(kwargs)
-            if not logtypes:
-                raise AttributeError('No log types given.')
+        logtypes = get_logtypes(kwargs)
+        filters = get_filter_dict(kwargs)
 
-            def log_method(*args, **kwargs):
-                return WindowsLogsNode.get_logs(logtypes, filters, *args, **kwargs)
+        def log_method(*args, **kwargs):
+            return WindowsLogsNode.get_logs(logtypes, filters, *args, **kwargs)
 
-            self.method = log_method
-            return {self.name: self.method(*args, **kwargs)}
-        except AttributeError:
-            return {self.name: []}
+        self.method = log_method
+        return { self.name: self.method(*args, **kwargs) }
 
     @staticmethod
     def get_logs(logtypes, filters, *args, **kwargs):
@@ -88,6 +88,11 @@ class WindowsLogsNode(nodes.LazyNode):
                 logging.exception(exc)
                 raise Exception('General error occurred while getting log %s: %r' % (logtype, exc))
 
+        # If the logs are empty, and we had no name selected, give a good
+        # explanation of what is going on instead of being empty
+        if not logtypes and not logs:
+            return { 'message': 'No log type selected. Select log types using \'name=<type>\'. Example: api/logs?name=System. Multiple log types can be selected.' }
+
         return logs, 'logs'
 
     def run_check(self, *args, **kwargs):
@@ -95,15 +100,15 @@ class WindowsLogsNode(nodes.LazyNode):
             logs = self.walk(*args, **kwargs)['logs'][0]
             log_names = sorted(logs.keys())
         except Exception as exc:
-            return {'stdout': 'UNKNOWN: %s, cannot continue meaningfully.' % exc.message,
-                    'returncode': 3}
+            return { 'stdout': 'UNKNOWN: %s, cannot continue meaningfully.' % exc.message,
+                     'returncode': 3 }
 
         log_counts = [len(logs[x]) for x in log_names]
 
         self.set_warning(kwargs)
         self.set_critical(kwargs)
         self.set_log_check(kwargs)
-        self.get_delta_values(log_counts, kwargs, log_names)
+        self.get_delta_values(log_counts, kwargs, *args, **kwargs)
 
         returncode = 0
         prefix = 'OK'
@@ -122,18 +127,41 @@ class WindowsLogsNode(nodes.LazyNode):
             logged_after = logged_after[0]
         nice_timedelta = self.translate_timedelta(logged_after)
 
-        perfdata = ' '.join(["'%s'=%d;%s;%s;" % (name, count, self.warning, self.critical) for name, count in
+        perfdata = ' '.join(["'%s'=%d;%s;%s;" % (name, count, ''.join(self.warning), ''.join(self.critical)) for name, count in
                              zip(log_names, log_counts)])
         info = ', '.join(['%s has %d logs' % (name, count) for name, count in zip(log_names, log_counts)])
-        info_line = '%s: %s that are younger than %s' % (prefix, info, nice_timedelta)
+        info_line = '%s: %s (Time range - %s)' % (prefix, info, nice_timedelta)
 
         stdout = '%s | %s' % (info_line, perfdata)
-        return {'stdout': stdout, 'returncode': returncode}
+
+        # Long output including actual log messages
+        for n in log_names:
+            if n == 'Total Count':
+                continue
+            stdout += '\n%s Logs\nTime: Computer: Severity: Event ID: Source: Message\n-----------------------------------\n' % n
+            for log in logs[n]:
+                stdout += '%s: %s: %s: %s: %s: %s\n' % (log['time_generated'], log['computer_name'], log['severity'],
+                    log['event_id'], log['application'], log['message'].replace('\r\n', ''))
+
+        # Get the check logging value
+        try:
+            check_logging = int(kwargs['config'].get('general', 'check_logging'))
+        except Exception as e:
+            check_logging = 1
+
+        # Put check results in the check database
+        if not server.__INTERNAL__ and check_logging == 1:
+            db = database.DB()
+            current_time = time.time()
+            db.add_check(kwargs['accessor'].rstrip('/'), current_time, current_time, returncode,
+                         stdout, kwargs['remote_addr'], 'Active')
+
+        return { 'stdout': stdout, 'returncode': returncode }
 
     @staticmethod
     def translate_timedelta(time_delta):
         if not time_delta:
-            return 'the universe'
+            return 'last 24 hours'
         num, suffix = time_delta[:-1], time_delta[-1]
         if suffix == 's':
             nice_name = 'second'
@@ -149,8 +177,7 @@ class WindowsLogsNode(nodes.LazyNode):
             nice_name = 'month'
         if int(num) > 1:
             nice_name += 's'
-        nice_name += ' old'
-        return '%s %s' % (num, nice_name)
+        return 'last %s %s' % (num, nice_name)
 
     def set_log_check(self, request_args):
         log_check = request_args.get('type', 'all')
@@ -194,6 +221,8 @@ class WindowsLogsNode(nodes.LazyNode):
 
 def get_logtypes(request_args):
     logtypes = request_args.get('name', [])
+    #if logtypes is None:
+    #    logtypes = ['Application', 'Security', 'Setup', 'System', 'Forwarded Events']
     return logtypes
 
 
@@ -222,8 +251,10 @@ def get_filter_dict(request_args):
             fdict['logged_after'] = logged_after
     return fdict
 
+
 def get_node():
     return WindowsLogsNode('logs', None)
+
 
 EVENT_TYPE = {win32con.EVENTLOG_AUDIT_FAILURE: 'AUDIT_FAILURE',
               win32con.EVENTLOG_AUDIT_SUCCESS: 'AUDIT_SUCCESS',
@@ -235,6 +266,7 @@ EVENT_TYPE = {win32con.EVENTLOG_AUDIT_FAILURE: 'AUDIT_FAILURE',
               'INFORMATION': win32con.EVENTLOG_INFORMATION_TYPE,
               'AUDIT_FAILURE': win32con.EVENTLOG_AUDIT_FAILURE,
               'AUDIT_SUCCESS': win32con.EVENTLOG_AUDIT_SUCCESS}
+
 
 def get_timedelta(offset, time_frame):
     if time_frame == 's':
@@ -267,8 +299,7 @@ def get_datetime_from_date_input(date_input):
 
 def datetime_from_event_date(evt_date):
     """
-    This function converts dates with format
-    '12/23/99 15:54:09' to seconds since 1970.
+    This function converts dates with format '12/23/99 15:54:09' to seconds since 1970.
 
     Note - NS:
     The fact that this is required is really dubious. Not sure why the win32 API
@@ -286,10 +317,20 @@ def is_interesting_event(event, name, filters):
         restrictions = filters[log_property]
         for restriction in restrictions:
             value = getattr(event, log_property, None)
+
+            # Special for Event ID
+            if log_property == "EventID":
+                value = str(value & 0x1FFFFFFF)
+                if str(restriction) != value:
+                    return False
+
+            # Look in message
             if value is None and log_property == 'Message':
                 safe = win32evtlogutil.SafeFormatMessage(event, name)
                 if not re.search(restriction, safe):
                     return False
+
+            # Do normal ==
             if not value is None:
                 if str(restriction) != str(value):
                     return False
@@ -299,7 +340,7 @@ def is_interesting_event(event, name, filters):
 def normalize_event(event, name):
     safe_log = {}
     safe_log['message'] = win32evtlogutil.SafeFormatMessage(event, name)
-    safe_log['event_id'] = str(event.EventID)
+    safe_log['event_id'] = str(event.EventID & 0x1FFFFFFF)
     safe_log['computer_name'] = str(event.ComputerName)
     safe_log['category'] = str(event.EventCategory)
     safe_log['severity'] = EVENT_TYPE.get(event.EventType, 'UNKNOWN')
@@ -330,6 +371,8 @@ def get_event_logs(server, name, filters):
                     elif is_interesting_event(event, name, filters):
                         safe_log = normalize_event(event, name)
                         logs.append(safe_log)
+            else:
+                raise StopIteration
     except StopIteration:
         pass
     finally:

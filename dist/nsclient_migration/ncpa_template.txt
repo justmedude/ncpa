@@ -2,9 +2,9 @@
 uid = nagios 
 certificate = adhoc
 loglevel = info
-ip = 0.0.0.0
-gid = nagcmd
-logfile = var/ncpa_listener.log
+ip = ::
+gid = nagios
+logfile = var/log/ncpa_listener.log
 port = 5693
 pidfile = var/ncpa_listener.pid
 
@@ -12,9 +12,9 @@ pidfile = var/ncpa_listener.pid
 uid = nagios
 handlers = nrds
 loglevel = info
-gid = nagcmd
+gid = nagios
 sleep = 300
-logfile = var/ncpa_passive.log
+logfile = var/log/ncpa_passive.log
 pidfile = var/ncpa_passive.pid
 
 [nrdp]

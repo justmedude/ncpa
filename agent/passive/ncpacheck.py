@@ -1,9 +1,16 @@
+# -*- coding: utf-8 -*-
+
 import logging
 import json
 import urllib
 import urlparse
+import time
+import hashlib
 import listener.server
+import listener.database
 
+# Constants to keep track of the passive check runs 
+NEXT_RUN = { }
 
 class NCPACheck(object):
     """
@@ -18,12 +25,18 @@ class NCPACheck(object):
     child classes and running the results.
     """
 
-    def __init__(self, config, instruction, hostname, servicename):
+    def __init__(self, config, instruction, hostname, servicename, duration):
         logging.debug('Initializing NCPA check with %s', instruction)
         self.config = config
         self.hostname = hostname
         self.servicename = servicename
         self.instruction = instruction
+        self.duration = float(duration)
+
+        # Set the next run for this specific check
+        key = hashlib.sha256(self.hostname + self.servicename).hexdigest()
+        if not key in NEXT_RUN:
+            NEXT_RUN[key] = 0
 
     @staticmethod
     def get_api_url_from_instruction(instruction):
@@ -38,19 +51,19 @@ class NCPACheck(object):
         """
         logging.debug('Getting API url for instruction %s', instruction)
 
-        if ' ' in instruction:
-            api_url, api_args = NCPACheck.parse_cmdline_style_instruction(instruction)
-        else:
+        if '?' in instruction or '&' in instruction:
             api_url, api_args = NCPACheck.parse_api_url_style_instruction(instruction)
+            api_args.append(('check', '1'))
+        else:
+            api_url, api_args = NCPACheck.parse_cmdline_style_instruction(instruction)
+            api_args['check'] = '1'
 
-        # Ensure we are running a check
-        api_args['check'] = '1'
         api_url = NCPACheck.normalize_api_url(api_url)
 
         logging.debug('Determined instruction to be: %s', instruction)
         return api_url, api_args
 
-    def run(self):
+    def run(self, default_duration=300):
         """
         The primary method for running an NCPA check. Once the method has been
         instantiated this is the only function you should run.
@@ -70,6 +83,16 @@ class NCPACheck(object):
         if stdout is None or returncode is None:
             raise ValueError("Stdout or returncode was None, cannot return "
                              "meaningfully.")
+
+        # Get some info about the check
+        current_time = time.time()
+        accessor = api_url.replace('/api/', '').rstrip('/')
+
+        # Save returned check results to the DB if we don't error out
+        if listener.server.__INTERNAL__:
+            db = listener.database.DB()
+            db.add_check(accessor, current_time, current_time, int(returncode),
+                         stdout, 'Internal', 'Passive')
 
         return stdout, returncode
 
@@ -102,6 +125,28 @@ class NCPACheck(object):
 
         return response_json
 
+    def needs_to_run(self):
+        """
+        Check if we need to run the check again, or if it was ran within it's duration
+        """
+        key = hashlib.sha256(self.hostname + self.servicename).hexdigest()
+        nrun = NEXT_RUN[key]
+
+        logging.debug('Next run set to be at %s', nrun)
+        if nrun <= time.time():
+            return True
+        return False
+
+    def set_next_run(self, run_time):
+        """
+        Set next run time to the duration given or the default duration set in ncpa.cfg
+        """
+        key = hashlib.sha256(self.hostname + self.servicename).hexdigest()
+
+        NEXT_RUN[key] = run_time + self.duration
+        logging.debug('Next run is %s', NEXT_RUN[key])
+        return
+
     @staticmethod
     def handle_agent_response(response):
         """
@@ -116,20 +161,17 @@ class NCPACheck(object):
         stdout, returncode = None, None
 
         try:
-            response_dict = json.loads(response)['value']
+            response_dict = json.loads(response)
             stdout = response_dict['stdout']
             returncode = unicode(response_dict['returncode'])
         except ValueError as exc:
-            logging.error("Error with JSON: %s. JSON was: %s", str(exc),
-                          response)
+            logging.error("Error with JSON: %s. JSON was: %s", str(exc), response)
         except TypeError as exc:
             logging.error("Error response was not a string: %s", str(exc))
-        except KeyError as exc:
-            logging.error("JSON was missing keyword: %s. JSON given: %s",
-                          str(exc), response)
 
         logging.debug("JSON response handled found stdout='%s', returncode=%s",
                       stdout, returncode)
+
         return stdout, returncode
 
     @staticmethod
@@ -137,7 +179,7 @@ class NCPACheck(object):
         """
         Parse the commandline to support calls such as:
 
-        /api/cpu/percent --warning 10 --critical 20 --delta 1
+        /cpu/percent --warning 10 --critical 20 --delta 1
 
         As opposed to the URL encoded version
 
@@ -217,6 +259,15 @@ class NCPACheck(object):
         parse = urlparse.urlparse(instruction)
 
         api_url = parse.path
-        api_args = {x: v[0] for x, v in urlparse.parse_qs(parse.query).items()}
+        api_args = []
+
+        # Parse arguments for URL
+        args = urlparse.parse_qs(parse.query).items()
+        for x, v in args:
+            if len(v) == 1:
+                api_args.append((x, v[0]))
+            else:
+                for val in v:
+                    api_args.append((x, val))
 
         return api_url, api_args

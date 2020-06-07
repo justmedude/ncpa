@@ -1,7 +1,15 @@
 *.pyc
-*.log
+*.log*
 *.csr
 *.key
 *.crt
 *.cfg
 .idea/
+.vagrant
+.cache/
+agent/build/*
+docs/_build
+*.exe
+agent/plugins/*
+ncpa.db
+prereqs.installed

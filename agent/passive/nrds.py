@@ -1,7 +1,8 @@
 from __future__ import with_statement
 import sys
 import xml.etree.ElementTree as ET
-from passive.nagioshandler import NagiosHandler
+import listener.server
+import nagioshandler
 import utils
 import tempfile
 import re
@@ -10,7 +11,7 @@ import os
 import ConfigParser
 
 
-class Handler(NagiosHandler):
+class Handler(nagioshandler.NagiosHandler):
     """
     Class for handling the passive NRDS component.
     """
@@ -19,11 +20,16 @@ class Handler(NagiosHandler):
         super(Handler, self).__init__(config)
 
     def run(self, *args, **kwargs):
+        logging.debug('Establishing passive handler: NRDS')
+
+        # The NRDS section does not exist right now..
+        return
+        
         try:
-            nrds_url = self.config.get('nrds', 'URL', None)
-            nrds_config = self.config.get('nrds', 'CONFIG_NAME', None)
-            nrds_config_version = self.config.get('nrds', 'CONFIG_VERSION', None)
-            nrds_token = self.config.get('nrds', 'TOKEN', None)
+            nrds_url = self.config.get('nrds', 'url')
+            nrds_config = self.config.get('nrds', 'config_name')
+            nrds_config_version = self.config.get('nrds', 'config_version')
+            nrds_token = self.config.get('nrds', 'token')
         except (ConfigParser.NoOptionError, ConfigParser.NoSectionError) as exc:
             logging.error("Encountered error while getting NRDS config values: %r", exc)
 
@@ -99,7 +105,7 @@ class Handler(NagiosHandler):
                 if not test_config.sections():
                     raise Exception('Config contained no NCPA directives, not writing.')
         except Exception as exc:
-            logging.error("NRDS config recieved from the server contained errors: %r", exc)
+            logging.error("NRDS config received from the server contained errors: %r", exc)
             return False
 
         if nrds_response:

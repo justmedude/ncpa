@@ -1,54 +1,71 @@
 <!DOCTYPE html>
 <html lang='en'>
     <head>
-        {% block headercss %}
-        <link rel='stylesheet' href='/static/css/bootstrap.min.css' />
-        <link rel='stylesheet' href='/static/css/bootstrap-responsive.min.css' />
-        <link rel='stylesheet' href='/static/css/font-awesome.min.css' />
-        <link rel='stylesheet' href='/static/css/ncpa.css' />
-        {% endblock %}
-        <title>NCPA Web Interface</title>
-        <link rel="shortcut icon" type="image/png" href="/static/img/ncpa-favicon.png" />
-        <link rel="icon" type="image/png" href="/static/img/ncpa-favicon.png" />
+        <title>{% block title %}Dashboard{% endblock %} &middot; NCPA</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta name="description" content="NCPA Web Interface">
-        <meta name="author" content="Nagios Enterprises LLC, Nicholas Scott">
-        <script src='/static/js/jquery-1.8.3.min.js'></script>
+        <meta name="author" content="Nagios Enterprises, LLC">
+        <link rel="shortcut icon" type="image/png" href="/static/img/ncpa.png" />
+        <link rel="icon" type="image/png" href="/static/img/ncpa.png" />
+        <link rel='stylesheet' href='/static/css/bootstrap.min.css'>
+        <link rel='stylesheet' href='/static/css/font-awesome.min.css'>
+        <link rel='stylesheet' href='/static/css/ncpa.css'>
+        {% block headercss %}
+        {% endblock %}
+        <script src='/static/js/jquery.3.5.1.min.js'></script>
         <script src='/static/js/bootstrap.min.js'></script>
-        <script src='/static/js/d3.v3.min.js'></script>
+        <script src='/static/js/d3.v5.min.js'></script>
+        <script src='/static/js/main.js'></script>
         {% block headerjs %}
         {% endblock %}
     </head>
-    <body>
-        <div class='navbar navbar-inverse navbar-top'>
-            <div class='navbar-inner'>
-                <div class='container-fluid'>
-                    <button type="button" class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+    <body{% if not no_nav %} style="padding-top: 50px;"{% endif %}>
+        {% if not no_nav %}
+        <nav class="navbar navbar-inverse navbar-default navbar-fixed-top">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse-left">
+                        <span class="sr-only">Toggle navigation</span>
                         <span class="icon-bar"></span>
                         <span class="icon-bar"></span>
                         <span class="icon-bar"></span>
                     </button>
-                    <a class='brand' href='/'>NCPA</a>
-                    <div class="nav-collapse collapse">
-                        <ul class="nav">
-                            {% if not hide_page_links %}
-                                <li id="home-nav"><a href="/"><i class="fa fa-home"></i> Home</a></li>
-                                <li id="dashboard-nav"><a href="/dashboard"><i class="fa fa-desktop"></i> Dashboard</a></li>
-                                <li id="navigator-nav"><a href="/api"><i class="fa fa-cog"></i> API</a></li>
-                                <li id="top-nav"><a href="/top-base"><i class="fa fa-tachometer"></i> Top Processes</a></li>
-                                <li id="graph-picker-nav"><a href="/graph-picker"><i class="fa fa-area-chart"></i> Graphs</a></li>
-                        </ul>
-                        <ul class="nav" style="float: right;">
-                            <li><a href="/static/help/index.html"><i class="fa fa-life-ring"></i> Help</a></li>
-                            <li class="divider-vertical"></li>
-                            <li><a href="/logout"><i class="fa fa-power-off"></i> Logout</a></li>
-                            {% endif %}
-                        </ul>
-                    </div>
+                    <a class="navbar-brand" href="/gui/">NCPA</a>
+                </div>
+                <div class="collapse navbar-collapse" id="navbar-collapse-left">
+                    <ul class="nav navbar-nav">
+                        {% if not hide_page_links %}
+                        <li id="dashboard-nav"><a href="/gui/"><i class="fa fa-desktop fa-14 fa-l"></i> Dashboard</a></li>
+                        <li id="checks-nav"><a href="/gui/checks"><i class="fa fa-check fa-14 fa-l"></i> Checks</a></li>
+                        <li id="live-nav" class="dropdown-link">
+                            <a href="/gui/stats"><i class="fa fa-play-circle fa-14 fa-l"></i> Live Data</a>
+                            <ul class="menu">
+                                <li><a href="/gui/stats"><i class="fa fa-line-chart fa-14 fa-fw fa-l"></i> Stats Graphs</a></li>
+                                {% if is_windows %}
+                                <li><a href="/gui/tail"><i class="fa fa-file-text-o fa-14 fa-fw fa-l"></i> Tail Event Logs</a></li>
+                                {% endif %}
+                                <li><a href="/gui/top"><i class="fa fa-tachometer fa-14 fa-fw fa-l"></i> Top Processes</a></li>
+                            </ul>
+                        </li>
+                        <li id="api-nav"><a href="/gui/api"><i class="fa fa-sitemap fa-14 fa-l"></i> API</a></li>
+                        <li id="graphs-nav"><a href="/gui/graphs"><i class="fa fa-area-chart fa-14 fa-l"></i> Graphs</a></li>
+                    </ul>
+                    <ul class="nav navbar-nav navbar-right">
+                        {% if admin_visible %}
+                        <li id="admin-nav"><a href="/gui/admin"><i class="fa fa-cog fa-14 fa-l"></i> Admin</a></li>
+                        {% endif %}
+                        <li id="help-nav"><a href="/gui/help"><i class="fa fa-life-ring fa-14 fa-l"></i> Help</a></li>
+                        <li class="divider-vertical"></li>
+                        <li><a href="/logout"><i class="fa fa-power-off fa-14 fa-l"></i> Logout</a></li>
+                        {% endif %}
+                    </ul>
                 </div>
             </div>
-        </div>
-        <div class='container' id="main-content-container">
+        </nav>
+        {% endif %}
+        {% block undernav %}
+        {% endblock %}
+        <div id="main-content-container">
             {% block content %}
             {% endblock %}
         </div>

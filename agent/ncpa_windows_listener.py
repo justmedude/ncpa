@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 #------------------------------------------------------------------------------
 # Config.py
 #   This file defines information about the service. The first four
@@ -41,6 +43,6 @@ DISPLAY_NAME = "NCPA Listener - %s"
 MODULE_NAME = "ncpa_windows"
 CLASS_NAME = "Listener"
 DESCRIPTION = "NCPA HTTP Listener Server"
-AUTO_START = True
+AUTO_START = False
 SESSION_CHANGES = False
 

@@ -1,7 +1,7 @@
 // MIT License:
 //
 // Copyright (c) 2010-2013, Joe Walnes
-//               2013-2014, Drew Noakes
+//               2013-2018, Drew Noakes
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -24,7 +24,7 @@
 /**
  * Smoothie Charts - http://smoothiecharts.org/
  * (c) 2010-2013, Joe Walnes
- *     2013-2014, Drew Noakes
+ *     2013-2018, Drew Noakes
  *
  * v1.0: Main charting library, by Joe Walnes
  * v1.1: Auto scaling of axis, by Neil Dunn
@@ -66,9 +66,40 @@
  * v1.21: Add 'step' interpolation mode, by @drewnoakes
  * v1.22: Add support for different pixel ratios. Also add optional y limit formatters, by @copacetic
  * v1.23: Fix bug introduced in v1.22 (#44), by @drewnoakes
+ * v1.24: Fix bug introduced in v1.23, re-adding parseFloat to y-axis formatter defaults, by @siggy_sf
+ * v1.25: Fix bug seen when adding a data point to TimeSeries which is older than the current data, by @Nking92
+ *        Draw time labels on top of series, by @comolosabia
+ *        Add TimeSeries.clear function, by @drewnoakes
+ * v1.26: Add support for resizing on high device pixel ratio screens, by @copacetic
+ * v1.27: Fix bug introduced in v1.26 for non whole number devicePixelRatio values, by @zmbush
+ * v1.28: Add 'minValueScale' option, by @megawac
+ *        Fix 'labelPos' for different size of 'minValueString' 'maxValueString', by @henryn
+ * v1.29: Support responsive sizing, by @drewnoakes
+ * v1.29.1: Include types in package, and make property optional, by @TrentHouliston
+ * v1.30: Fix inverted logic in devicePixelRatio support, by @scanlime
+ * v1.31: Support tooltips, by @Sly1024 and @drewnoakes
+ * v1.32: Support frame rate limit, by @dpuyosa
+ * v1.33: Use Date static method instead of instance, by @nnnoel
+ *        Fix bug with tooltips when multiple charts on a page, by @jpmbiz70
+ * v1.34: Add disabled option to TimeSeries, by @TechGuard (#91)
+ *        Add nonRealtimeData option, by @annazhelt (#92, #93)
+ *        Add showIntermediateLabels option, by @annazhelt (#94)
+ *        Add displayDataFromPercentile option, by @annazhelt (#95)
+ *        Fix bug when hiding tooltip element, by @ralphwetzel (#96)
+ *        Support intermediate y-axis labels, by @beikeland (#99)
+ * v1.35: Fix issue with responsive mode at high DPI, by @drewnoakes (#101)
+ * v1.36: Add tooltipLabel to ITimeSeriesPresentationOptions.
+ *        If tooltipLabel is present, tooltipLabel displays inside tooltip
+ *        next to value, by @jackdesert (#102)
+ *        Fix bug rendering issue in series fill when using scroll backwards, by @olssonfredrik
+ *        Add title option, by @mesca
+ *        Fix data drop stoppage by rejecting NaNs in append(), by @timdrysdale
  */
 
 ;(function(exports) {
+
+  // Date.now polyfill
+  Date.now = Date.now || function() { return new Date().getTime(); };
 
   var Util = {
     extend: function() {
@@ -92,6 +123,18 @@
         }
       }
       return arguments[0];
+    },
+    binarySearch: function(data, value) {
+      var low = 0,
+          high = data.length;
+      while (low < high) {
+        var mid = (low + high) >> 1;
+        if (value < data[mid][0])
+          high = mid;
+        else
+          low = mid + 1;
+      }
+      return low;
     }
   };
 
@@ -113,14 +156,22 @@
    */
   function TimeSeries(options) {
     this.options = Util.extend({}, TimeSeries.defaultOptions, options);
-    this.data = [];
-    this.maxValue = Number.NaN; // The maximum value ever seen in this TimeSeries.
-    this.minValue = Number.NaN; // The minimum value ever seen in this TimeSeries.
+    this.disabled = false;
+    this.clear();
   }
 
   TimeSeries.defaultOptions = {
     resetBoundsInterval: 3000,
     resetBounds: true
+  };
+
+  /**
+   * Clears all data and state from this TimeSeries object.
+   */
+  TimeSeries.prototype.clear = function() {
+    this.data = [];
+    this.maxValue = Number.NaN; // The maximum value ever seen in this TimeSeries.
+    this.minValue = Number.NaN; // The minimum value ever seen in this TimeSeries.
   };
 
   /**
@@ -158,13 +209,20 @@
    * whether it is replaced, or the values summed (defaults to false.)
    */
   TimeSeries.prototype.append = function(timestamp, value, sumRepeatedTimeStampValues) {
+	// Reject NaN
+	if (isNaN(timestamp) || isNaN(value)){
+		return
+	}  
     // Rewind until we hit an older timestamp
     var i = this.data.length - 1;
-    while (i > 0 && this.data[i][0] > timestamp) {
+    while (i >= 0 && this.data[i][0] > timestamp) {
       i--;
     }
 
-    if (this.data.length > 0 && this.data[i][0] === timestamp) {
+    if (i === -1) {
+      // This new item is the oldest data
+      this.data.splice(0, 0, [timestamp, value]);
+    } else if (this.data.length > 0 && this.data[i][0] === timestamp) {
       // Update existing values in the array
       if (sumRepeatedTimeStampValues) {
         // Sum this value into the existing 'bucket'
@@ -209,20 +267,25 @@
    *   minValue: undefined,                      // specify to clamp the lower y-axis to a given value
    *   maxValue: undefined,                      // specify to clamp the upper y-axis to a given value
    *   maxValueScale: 1,                         // allows proportional padding to be added above the chart. for 10% padding, specify 1.1.
+   *   minValueScale: 1,                         // allows proportional padding to be added below the chart. for 10% padding, specify 1.1.
    *   yRangeFunction: undefined,                // function({min: , max: }) { return {min: , max: }; }
    *   scaleSmoothing: 0.125,                    // controls the rate at which y-value zoom animation occurs
    *   millisPerPixel: 20,                       // sets the speed at which the chart pans by
    *   enableDpiScaling: true,                   // support rendering at different DPI depending on the device
    *   yMinFormatter: function(min, precision) { // callback function that formats the min y value label
-   *     return min.toFixed(precision);
+   *     return parseFloat(min).toFixed(precision);
    *   },
    *   yMaxFormatter: function(max, precision) { // callback function that formats the max y value label
-   *     return max.toFixed(precision);
+   *     return parseFloat(max).toFixed(precision);
+   *   },
+   *   yIntermediateFormatter: function(intermediate, precision) { // callback function that formats the intermediate y value labels
+   *     return parseFloat(intermediate).toFixed(precision);
    *   },
    *   maxDataSetLength: 2,
    *   interpolation: 'bezier'                   // one of 'bezier', 'linear', or 'step'
    *   timestampFormatter: null,                 // optional function to format time stamps for bottom of chart
    *                                             // you may use SmoothieChart.timeFormatter, or your own: function(date) { return ''; }
+   *   scrollBackwards: false,                   // reverse the scroll direction of the chart
    *   horizontalLines: [],                      // [ { value: 0, color: '#ffffff', lineWidth: 1 } ]
    *   grid:
    *   {
@@ -240,8 +303,30 @@
    *     fillStyle: '#ffffff',                   // colour for text of labels,
    *     fontSize: 15,
    *     fontFamily: 'sans-serif',
-   *     precision: 2
-   *   }
+   *     precision: 2,
+   *     showIntermediateLabels: false,          // shows intermediate labels between min and max values along y axis
+   *     intermediateLabelSameAxis: true,
+   *   },
+   *   title
+   *   {
+   *     text: '',                               // the text to display on the left side of the chart
+   *     fillStyle: '#ffffff',                   // colour for text
+   *     fontSize: 15,
+   *     fontFamily: 'sans-serif',
+   *     verticalAlign: 'middle'                 // one of 'top', 'middle', or 'bottom'
+   *   },
+   *   tooltip: false                            // show tooltip when mouse is over the chart
+   *   tooltipLine: {                            // properties for a vertical line at the cursor position
+   *     lineWidth: 1,
+   *     strokeStyle: '#BBBBBB'
+   *   },
+   *   tooltipFormatter: SmoothieChart.tooltipFormatter, // formatter function for tooltip text
+   *   nonRealtimeData: false,                   // use time of latest data as current time
+   *   displayDataFromPercentile: 1,             // display not latest data, but data from the given percentile
+   *                                             // useful when trying to see old data saved by setting a high value for maxDataSetLength
+   *                                             // should be a value between 0 and 1
+   *   responsive: false,                        // whether the chart should adapt to the size of the canvas
+   *   limitFPS: 0                               // maximum frame rate the chart will render at, in FPS (zero means no limit)
    * }
    * </pre>
    *
@@ -253,17 +338,50 @@
     this.currentValueRange = 1;
     this.currentVisMinValue = 0;
     this.lastRenderTimeMillis = 0;
+    this.lastChartTimestamp = 0;
+
+    this.mousemove = this.mousemove.bind(this);
+    this.mouseout = this.mouseout.bind(this);
   }
+
+  /** Formats the HTML string content of the tooltip. */
+  SmoothieChart.tooltipFormatter = function (timestamp, data) {
+      var timestampFormatter = this.options.timestampFormatter || SmoothieChart.timeFormatter,
+          lines = [timestampFormatter(new Date(timestamp))],
+          label;
+
+      for (var i = 0; i < data.length; ++i) {
+        label = data[i].series.options.tooltipLabel || ''
+        if (label !== ''){
+            label = label + ' ';
+        }
+        lines.push('<span style="color:' + data[i].series.options.strokeStyle + '">' +
+        label +
+        this.options.yMaxFormatter(data[i].value, this.options.labels.precision) + '</span>');
+      }
+
+      return lines.join('<br>');
+  };
 
   SmoothieChart.defaultChartOptions = {
     millisPerPixel: 20,
     enableDpiScaling: true,
-    yMinFormatter: function(min, precision) { return min.toFixed(precision); },
-    yMaxFormatter: function(max, precision) { return max.toFixed(precision); },
+    yMinFormatter: function(min, precision) {
+      return parseFloat(min).toFixed(precision);
+    },
+    yMaxFormatter: function(max, precision) {
+      return parseFloat(max).toFixed(precision);
+    },
+    yIntermediateFormatter: function(intermediate, precision) {
+      return parseFloat(intermediate).toFixed(precision);
+    },
     maxValueScale: 1,
+    minValueScale: 1,
     interpolation: 'bezier',
     scaleSmoothing: 0.125,
     maxDataSetLength: 2,
+    scrollBackwards: false,
+    displayDataFromPercentile: 1,
     grid: {
       fillStyle: '#000000',
       strokeStyle: '#777777',
@@ -278,9 +396,27 @@
       disabled: false,
       fontSize: 10,
       fontFamily: 'monospace',
-      precision: 2
+      precision: 2,
+      showIntermediateLabels: false,
+      intermediateLabelSameAxis: true,
     },
-    horizontalLines: []
+    title: {
+      text: '',
+      fillStyle: '#ffffff',
+      fontSize: 15,
+      fontFamily: 'monospace',
+      verticalAlign: 'middle'
+    },
+    horizontalLines: [],
+    tooltip: false,
+    tooltipLine: {
+      lineWidth: 1,
+      strokeStyle: '#BBBBBB'
+    },
+    tooltipFormatter: SmoothieChart.tooltipFormatter,
+    nonRealtimeData: false,
+    responsive: false,
+    limitFPS: 0
   };
 
   // Based on http://inspirit.github.com/jsfeat/js/compatibility.js
@@ -294,7 +430,7 @@
             window.msRequestAnimationFrame      ||
             function(callback) {
               return window.setTimeout(function() {
-                callback(new Date().getTime());
+                callback(Date.now());
               }, 16);
             };
           return requestAnimationFrame.call(window, callback, element);
@@ -328,7 +464,8 @@
    * {
    *   lineWidth: 1,
    *   strokeStyle: '#ffffff',
-   *   fillStyle: undefined
+   *   fillStyle: undefined,
+   *   tooltipLabel: undefined
    * }
    * </pre>
    */
@@ -407,6 +544,126 @@
     this.start();
   };
 
+  SmoothieChart.prototype.getTooltipEl = function () {
+    // Create the tool tip element lazily
+    if (!this.tooltipEl) {
+      this.tooltipEl = document.createElement('div');
+      this.tooltipEl.className = 'smoothie-chart-tooltip';
+      this.tooltipEl.style.position = 'absolute';
+      this.tooltipEl.style.display = 'none';
+      document.body.appendChild(this.tooltipEl);
+    }
+    return this.tooltipEl;
+  };
+
+  SmoothieChart.prototype.updateTooltip = function () {
+    if(!this.options.tooltip){
+     return; 
+    }
+    var el = this.getTooltipEl();
+
+    if (!this.mouseover || !this.options.tooltip) {
+      el.style.display = 'none';
+      return;
+    }
+
+    var time = this.lastChartTimestamp;
+
+    // x pixel to time
+    var t = this.options.scrollBackwards
+      ? time - this.mouseX * this.options.millisPerPixel
+      : time - (this.canvas.offsetWidth - this.mouseX) * this.options.millisPerPixel;
+
+    var data = [];
+
+     // For each data set...
+    for (var d = 0; d < this.seriesSet.length; d++) {
+      var timeSeries = this.seriesSet[d].timeSeries;
+      if (timeSeries.disabled) {
+          continue;
+      }
+
+      // find datapoint closest to time 't'
+      var closeIdx = Util.binarySearch(timeSeries.data, t);
+      if (closeIdx > 0 && closeIdx < timeSeries.data.length) {
+        data.push({ series: this.seriesSet[d], index: closeIdx, value: timeSeries.data[closeIdx][1] });
+      }
+    }
+
+    if (data.length) {
+      el.innerHTML = this.options.tooltipFormatter.call(this, t, data);
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+    }
+  };
+
+  SmoothieChart.prototype.mousemove = function (evt) {
+    this.mouseover = true;
+    this.mouseX = evt.offsetX;
+    this.mouseY = evt.offsetY;
+    this.mousePageX = evt.pageX;
+    this.mousePageY = evt.pageY;
+    if(!this.options.tooltip){
+     return; 
+    }
+    var el = this.getTooltipEl();
+    el.style.top = Math.round(this.mousePageY) + 'px';
+    el.style.left = Math.round(this.mousePageX) + 'px';
+    this.updateTooltip();
+  };
+
+  SmoothieChart.prototype.mouseout = function () {
+    this.mouseover = false;
+    this.mouseX = this.mouseY = -1;
+    if (this.tooltipEl)
+      this.tooltipEl.style.display = 'none';
+  };
+
+  /**
+   * Make sure the canvas has the optimal resolution for the device's pixel ratio.
+   */
+  SmoothieChart.prototype.resize = function () {
+    var dpr = !this.options.enableDpiScaling || !window ? 1 : window.devicePixelRatio,
+        width, height;
+    if (this.options.responsive) {
+      // Newer behaviour: Use the canvas's size in the layout, and set the internal
+      // resolution according to that size and the device pixel ratio (eg: high DPI)
+      width = this.canvas.offsetWidth;
+      height = this.canvas.offsetHeight;
+
+      if (width !== this.lastWidth) {
+        this.lastWidth = width;
+        this.canvas.setAttribute('width', (Math.floor(width * dpr)).toString());
+        this.canvas.getContext('2d').scale(dpr, dpr);
+      }
+      if (height !== this.lastHeight) {
+        this.lastHeight = height;
+        this.canvas.setAttribute('height', (Math.floor(height * dpr)).toString());
+        this.canvas.getContext('2d').scale(dpr, dpr);
+      }
+    } else if (dpr !== 1) {
+      // Older behaviour: use the canvas's inner dimensions and scale the element's size
+      // according to that size and the device pixel ratio (eg: high DPI)
+      width = parseInt(this.canvas.getAttribute('width'));
+      height = parseInt(this.canvas.getAttribute('height'));
+
+      if (!this.originalWidth || (Math.floor(this.originalWidth * dpr) !== width)) {
+        this.originalWidth = width;
+        this.canvas.setAttribute('width', (Math.floor(width * dpr)).toString());
+        this.canvas.style.width = width + 'px';
+        this.canvas.getContext('2d').scale(dpr, dpr);
+      }
+
+      if (!this.originalHeight || (Math.floor(this.originalHeight * dpr) !== height)) {
+        this.originalHeight = height;
+        this.canvas.setAttribute('height', (Math.floor(height * dpr)).toString());
+        this.canvas.style.height = height + 'px';
+        this.canvas.getContext('2d').scale(dpr, dpr);
+      }
+    }
+  };
+
   /**
    * Starts the animation of this chart.
    */
@@ -415,22 +672,34 @@
       // We're already running, so just return
       return;
     }
-    // Make sure the canvas has the optimal resolution for the device's pixel ratio.
-    if (this.options.enableDpiScaling && window && window.devicePixelRatio !== 1) {
-      var canvasWidth = this.canvas.getAttribute('width');
-      var canvasHeight = this.canvas.getAttribute('height');
 
-      this.canvas.setAttribute('width', canvasWidth * window.devicePixelRatio);
-      this.canvas.setAttribute('height', canvasHeight * window.devicePixelRatio);
-      this.canvas.style.width = canvasWidth + 'px';
-      this.canvas.style.height = canvasHeight + 'px';
-      this.canvas.getContext('2d').scale(window.devicePixelRatio, window.devicePixelRatio);
-    }
+    this.canvas.addEventListener('mousemove', this.mousemove);
+    this.canvas.addEventListener('mouseout', this.mouseout);
 
     // Renders a frame, and queues the next frame for later rendering
     var animate = function() {
       this.frame = SmoothieChart.AnimateCompatibility.requestAnimationFrame(function() {
-        this.render();
+        if(this.options.nonRealtimeData){
+           var dateZero = new Date(0);
+           // find the data point with the latest timestamp
+           var maxTimeStamp = this.seriesSet.reduce(function(max, series){
+             var dataSet = series.timeSeries.data;
+             var indexToCheck = Math.round(this.options.displayDataFromPercentile * dataSet.length) - 1;
+             indexToCheck = indexToCheck >= 0 ? indexToCheck : 0;
+             indexToCheck = indexToCheck <= dataSet.length -1 ? indexToCheck : dataSet.length -1;
+             if(dataSet && dataSet.length > 0)
+             {
+              // timestamp corresponds to element 0 of the data point
+              var lastDataTimeStamp = dataSet[indexToCheck][0];
+              max = max > lastDataTimeStamp ? max : lastDataTimeStamp;
+             }
+             return max;
+          }.bind(this), dateZero);
+          // use the max timestamp as current time
+          this.render(this.canvas, maxTimeStamp > dateZero ? maxTimeStamp : null);
+        } else {
+          this.render();
+        }
         animate();
       }.bind(this));
     }.bind(this);
@@ -445,6 +714,8 @@
     if (this.frame) {
       SmoothieChart.AnimateCompatibility.cancelAnimationFrame(this.frame);
       delete this.frame;
+      this.canvas.removeEventListener('mousemove', this.mousemove);
+      this.canvas.removeEventListener('mouseout', this.mouseout);
     }
   };
 
@@ -457,6 +728,10 @@
     for (var d = 0; d < this.seriesSet.length; d++) {
       // TODO(ndunn): We could calculate / track these values as they stream in.
       var timeSeries = this.seriesSet[d].timeSeries;
+      if (timeSeries.disabled) {
+          continue;
+      }
+
       if (!isNaN(timeSeries.maxValue)) {
         chartMaxValue = !isNaN(chartMaxValue) ? Math.max(chartMaxValue, timeSeries.maxValue) : timeSeries.maxValue;
       }
@@ -476,6 +751,8 @@
     // Set the minimum if we've specified one
     if (chartOptions.minValue != null) {
       chartMinValue = chartOptions.minValue;
+    } else {
+      chartMinValue -= Math.abs(chartMinValue * chartOptions.minValueScale - chartMinValue);
     }
 
     // If a custom range function is set, call it
@@ -498,7 +775,11 @@
   };
 
   SmoothieChart.prototype.render = function(canvas, time) {
-    var nowMillis = new Date().getTime();
+    var nowMillis = Date.now();
+
+    // Respect any frame rate limit.
+    if (this.options.limitFPS > 0 && nowMillis - this.lastRenderTimeMillis < (1000/this.options.limitFPS))
+      return;
 
     if (!this.isAnimatingScale) {
       // We're not animating. We can use the last render time and the scroll speed to work out whether
@@ -512,6 +793,10 @@
         return;
       }
     }
+
+    this.resize();
+    this.updateTooltip();
+
     this.lastRenderTimeMillis = nowMillis;
 
     canvas = canvas || this.canvas;
@@ -519,6 +804,8 @@
 
     // Round time down to pixel granularity, so motion appears smoother.
     time -= time % this.options.millisPerPixel;
+
+    this.lastChartTimestamp = time;
 
     var context = canvas.getContext('2d'),
         chartOptions = this.options,
@@ -532,6 +819,9 @@
             : dimensions.height - (Math.round((offset / this.currentValueRange) * dimensions.height));
         }.bind(this),
         timeToXPixel = function(t) {
+          if(chartOptions.scrollBackwards) {
+            return Math.round((time - t) / chartOptions.millisPerPixel);
+          }
           return Math.round(dimensions.width - ((time - t) / chartOptions.millisPerPixel));
         };
 
@@ -566,7 +856,7 @@
     context.strokeStyle = chartOptions.grid.strokeStyle;
     // Vertical (time) dividers.
     if (chartOptions.grid.millisPerLine > 0) {
-      var textUntilX = dimensions.width - context.measureText(minValueString).width + 4;
+      context.beginPath();
       for (var t = time - (time % chartOptions.grid.millisPerLine);
            t >= oldestValidTime;
            t -= chartOptions.grid.millisPerLine) {
@@ -574,24 +864,11 @@
         if (chartOptions.grid.sharpLines) {
           gx -= 0.5;
         }
-        context.beginPath();
         context.moveTo(gx, 0);
         context.lineTo(gx, dimensions.height);
-        context.stroke();
-        context.closePath();
-
-        // Display timestamp at bottom of this line if requested, and it won't overlap
-        if (chartOptions.timestampFormatter && gx < textUntilX) {
-          // Formats the timestamp based on user specified formatting function
-          // SmoothieChart.timeFormatter function above is one such formatting option
-          var tx = new Date(t),
-            ts = chartOptions.timestampFormatter(tx),
-            tsWidth = context.measureText(ts).width;
-          textUntilX = gx - tsWidth - 2;
-          context.fillStyle = chartOptions.labels.fillStyle;
-          context.fillText(ts, gx - tsWidth, dimensions.height - 2);
-        }
       }
+      context.stroke();
+      context.closePath();
     }
 
     // Horizontal (value) dividers.
@@ -632,8 +909,12 @@
     // For each data set...
     for (var d = 0; d < this.seriesSet.length; d++) {
       context.save();
-      var timeSeries = this.seriesSet[d].timeSeries,
-          dataSet = timeSeries.data,
+      var timeSeries = this.seriesSet[d].timeSeries;
+      if (timeSeries.disabled) {
+          continue;
+      }
+
+      var dataSet = timeSeries.data,
           seriesOptions = this.seriesSet[d].options;
 
       // Delete old data that's moved off the left of the chart.
@@ -645,13 +926,14 @@
       // Draw the line...
       context.beginPath();
       // Retain lastX, lastY for calculating the control points of bezier curves.
-      var firstX = 0, lastX = 0, lastY = 0;
+      var firstX = 0, firstY = 0, lastX = 0, lastY = 0;
       for (var i = 0; i < dataSet.length && dataSet.length !== 1; i++) {
         var x = timeToXPixel(dataSet[i][0]),
             y = valueToYPixel(dataSet[i][1]);
 
         if (i === 0) {
           firstX = x;
+          firstY = y;
           context.moveTo(x, y);
         } else {
           switch (chartOptions.interpolation) {
@@ -696,9 +978,15 @@
       if (dataSet.length > 1) {
         if (seriesOptions.fillStyle) {
           // Close up the fill region.
-          context.lineTo(dimensions.width + seriesOptions.lineWidth + 1, lastY);
-          context.lineTo(dimensions.width + seriesOptions.lineWidth + 1, dimensions.height + seriesOptions.lineWidth + 1);
-          context.lineTo(firstX, dimensions.height + seriesOptions.lineWidth);
+          if (chartOptions.scrollBackwards) {
+            context.lineTo(lastX, dimensions.height + seriesOptions.lineWidth);
+            context.lineTo(firstX, dimensions.height + seriesOptions.lineWidth);
+            context.lineTo(firstX, firstY);
+          } else {
+            context.lineTo(dimensions.width + seriesOptions.lineWidth + 1, lastY);
+            context.lineTo(dimensions.width + seriesOptions.lineWidth + 1, dimensions.height + seriesOptions.lineWidth + 1);
+            context.lineTo(firstX, dimensions.height + seriesOptions.lineWidth);
+          }
           context.fillStyle = seriesOptions.fillStyle;
           context.fill();
         }
@@ -711,13 +999,99 @@
       context.restore();
     }
 
+    if (chartOptions.tooltip && this.mouseX >= 0) {
+      // Draw vertical bar to show tooltip position
+      context.lineWidth = chartOptions.tooltipLine.lineWidth;
+      context.strokeStyle = chartOptions.tooltipLine.strokeStyle;
+      context.beginPath();
+      context.moveTo(this.mouseX, 0);
+      context.lineTo(this.mouseX, dimensions.height);
+      context.closePath();
+      context.stroke();
+      this.updateTooltip();
+    }
+
     // Draw the axis values on the chart.
     if (!chartOptions.labels.disabled && !isNaN(this.valueRange.min) && !isNaN(this.valueRange.max)) {
       var maxValueString = chartOptions.yMaxFormatter(this.valueRange.max, chartOptions.labels.precision),
-          minValueString = chartOptions.yMinFormatter(this.valueRange.min, chartOptions.labels.precision);
+          minValueString = chartOptions.yMinFormatter(this.valueRange.min, chartOptions.labels.precision),
+          maxLabelPos = chartOptions.scrollBackwards ? 0 : dimensions.width - context.measureText(maxValueString).width - 2,
+          minLabelPos = chartOptions.scrollBackwards ? 0 : dimensions.width - context.measureText(minValueString).width - 2;
       context.fillStyle = chartOptions.labels.fillStyle;
-      context.fillText(maxValueString, dimensions.width - context.measureText(maxValueString).width - 2, chartOptions.labels.fontSize);
-      context.fillText(minValueString, dimensions.width - context.measureText(minValueString).width - 2, dimensions.height - 2);
+      context.fillText(maxValueString, maxLabelPos, chartOptions.labels.fontSize);
+      context.fillText(minValueString, minLabelPos, dimensions.height - 2);
+    }
+
+    // Display intermediate y axis labels along y-axis to the left of the chart
+    if ( chartOptions.labels.showIntermediateLabels
+          && !isNaN(this.valueRange.min) && !isNaN(this.valueRange.max)
+          && chartOptions.grid.verticalSections > 0) {
+      // show a label above every vertical section divider
+      var step = (this.valueRange.max - this.valueRange.min) / chartOptions.grid.verticalSections;
+      var stepPixels = dimensions.height / chartOptions.grid.verticalSections;
+      for (var v = 1; v < chartOptions.grid.verticalSections; v++) {
+        var gy = dimensions.height - Math.round(v * stepPixels);
+        if (chartOptions.grid.sharpLines) {
+          gy -= 0.5;
+        }
+        var yValue = chartOptions.yIntermediateFormatter(this.valueRange.min + (v * step), chartOptions.labels.precision);
+        //left of right axis?
+        intermediateLabelPos =
+          chartOptions.labels.intermediateLabelSameAxis
+          ? (chartOptions.scrollBackwards ? 0 : dimensions.width - context.measureText(yValue).width - 2)
+          : (chartOptions.scrollBackwards ? dimensions.width - context.measureText(yValue).width - 2 : 0);
+
+        context.fillText(yValue, intermediateLabelPos, gy - chartOptions.grid.lineWidth);
+      }
+    }
+
+    // Display timestamps along x-axis at the bottom of the chart.
+    if (chartOptions.timestampFormatter && chartOptions.grid.millisPerLine > 0) {
+      var textUntilX = chartOptions.scrollBackwards
+        ? context.measureText(minValueString).width
+        : dimensions.width - context.measureText(minValueString).width + 4;
+      for (var t = time - (time % chartOptions.grid.millisPerLine);
+           t >= oldestValidTime;
+           t -= chartOptions.grid.millisPerLine) {
+        var gx = timeToXPixel(t);
+        // Only draw the timestamp if it won't overlap with the previously drawn one.
+        if ((!chartOptions.scrollBackwards && gx < textUntilX) || (chartOptions.scrollBackwards && gx > textUntilX))  {
+          // Formats the timestamp based on user specified formatting function
+          // SmoothieChart.timeFormatter function above is one such formatting option
+          var tx = new Date(t),
+            ts = chartOptions.timestampFormatter(tx),
+            tsWidth = context.measureText(ts).width;
+
+          textUntilX = chartOptions.scrollBackwards
+            ? gx + tsWidth + 2
+            : gx - tsWidth - 2;
+
+          context.fillStyle = chartOptions.labels.fillStyle;
+          if(chartOptions.scrollBackwards) {
+            context.fillText(ts, gx, dimensions.height - 2);
+          } else {
+            context.fillText(ts, gx - tsWidth, dimensions.height - 2);
+          }
+        }
+      }
+    }
+
+    // Display title.
+    if (chartOptions.title.text !== '') {
+      context.font = chartOptions.title.fontSize + 'px ' + chartOptions.title.fontFamily;
+      var titleXPos = chartOptions.scrollBackwards ? dimensions.width - context.measureText(chartOptions.title.text).width - 2 : 2;
+      if (chartOptions.title.verticalAlign == 'bottom') {
+        context.textBaseline = 'bottom';
+        var titleYPos = dimensions.height;
+      } else if (chartOptions.title.verticalAlign == 'middle') {
+        context.textBaseline = 'middle';
+        var titleYPos = dimensions.height / 2;
+      } else {
+        context.textBaseline = 'top';
+        var titleYPos = 0;
+      }
+      context.fillStyle = chartOptions.title.fillStyle;
+      context.fillText(chartOptions.title.text, titleXPos, titleYPos);
     }
 
     context.restore(); // See .save() above.
